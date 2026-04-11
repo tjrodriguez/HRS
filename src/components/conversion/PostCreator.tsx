@@ -1,35 +1,10 @@
 "use client";
 import { useBusiness, Holiday } from '../context/BusinessContext';
 import { useParams, useRouter } from 'next/navigation';
-import { Sparkles, Copy, Image as ImageIcon, RefreshCw, Calendar, TrendingUp, Check } from 'lucide-react';
+import { Sparkles, Copy, Image as ImageIcon, RefreshCw, Calendar, TrendingUp, Check, Loader } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-
-// AI-generated caption templates based on business type
-const generateCaptions = (holiday: Holiday, businessType: string, businessName: string): string[] => {
-  const templates: Record<string, string[]> = {
-    'Coffee Shop': [
-      `☕ Celebrate ${holiday.name} with us! Start your day with our special holiday blend and cozy vibes. ${businessName} is the perfect spot to make memories this ${format(parseISO(holiday.date), 'MMMM')}. ✨`,
-      `Happy ${holiday.name}! 🎉 Treat yourself to something special today. Our baristas have crafted the perfect seasonal drinks just for you. Visit us and taste the difference! ☕💚`,
-      `This ${holiday.name}, we're brewing more than just coffee - we're creating moments that matter. ☕ Join us for artisanal drinks, fresh pastries, and good vibes. #${businessName.replace(/\s+/g, '')}`,
-      `Celebrating ${holiday.name} the right way - one cup at a time! ☕✨ Come enjoy our special menu and make today extraordinary. See you soon! 💫`,
-    ],
-    'Restaurant': [
-      `🍽️ ${holiday.name} calls for something special! Join us for an unforgettable dining experience with our seasonal menu. Reserve your table today! ✨`,
-      `Happy ${holiday.name}! 🎊 Our chefs have prepared something amazing for you. Come taste the love in every dish. Book now! 🍴`,
-      `Celebrate ${holiday.name} with flavors that tell a story. From farm to table, we're serving up memories. 🌟 #${businessName.replace(/\s+/g, '')}`,
-    ],
-    'Retail Store': [
-      `🛍️ ${holiday.name} Exclusive! Discover our curated collection perfect for this special day. Limited time offers you don't want to miss! ✨`,
-      `Happy ${holiday.name}! 🎁 Shop our specially selected items and find something that speaks to you. Quality meets value at ${businessName}!`,
-      `Make this ${holiday.name} memorable with ${businessName}! Explore our latest arrivals and special deals. 🌟 #ShopLocal`,
-    ],
-  };
-
-  const businessTemplates = templates[businessType] || templates['Coffee Shop'];
-  return businessTemplates;
-};
 
 const generateHashtags = (holiday: Holiday, businessType: string): string[] => {
   const holidayHashtags = [
@@ -60,6 +35,58 @@ export function PostCreator() {
   const [customCaption, setCustomCaption] = useState('');
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['Instagram']);
   const [copied, setCopied] = useState(false);
+  const [captions, setCaptions] = useState<string[]>([]);
+  const [isGenerating, setIsGenerating] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Generate captions using AI
+  useEffect(() => {
+    const generateAICaptions = async () => {
+      if (!holiday || !profile) return;
+
+      try {
+        setIsGenerating(true);
+        setError(null);
+
+        const response = await fetch('/api/generate-caption', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            holidayName: holiday.name,
+            businessName: profile.name,
+            businessType: profile.type || 'Retail',
+            businessNiche: profile.niche,
+            tone: profile.tone,
+            targetAudience: profile.targetAudience,
+            platform: selectedPlatforms[0] || 'Instagram',
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to generate captions');
+        }
+
+        const data = await response.json();
+        setCaptions(data.captions || []);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to generate captions';
+        setError(errorMessage);
+        toast.error(errorMessage);
+        // Fallback to basic templates
+        setCaptions([
+          `🎉 Celebrate ${holiday.name} with us! 🌟 Visit us today for special offers and exclusive deals.`,
+          `Happy ${holiday.name}! Join us in the celebration. We have something special prepared for you. 💫`,
+          `This ${holiday.name}, experience something amazing at ${profile.name}. Don't miss out! ✨`,
+        ]);
+      } finally {
+        setIsGenerating(false);
+      }
+    };
+
+    generateAICaptions();
+  }, [holiday, profile, selectedPlatforms]);
 
   if (!holiday || !profile) {
     return (
@@ -69,14 +96,39 @@ export function PostCreator() {
     );
   }
 
-  const captions = generateCaptions(holiday, profile.type || '', profile.name || '');
   const hashtags = generateHashtags(holiday, profile.type || '');
-  const currentCaption = customCaption || captions[selectedCaptionIndex];
+  const currentCaption = customCaption || captions[selectedCaptionIndex] || '';
 
-  const handleRegenerateCaption = () => {
-    setSelectedCaptionIndex((prev) => (prev + 1) % captions.length);
-    setCustomCaption('');
-    toast.success('New caption generated!');
+  const handleRegenerateCaption = async () => {
+    try {
+      setIsGenerating(true);
+      const response = await fetch('/api/generate-caption', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          holidayName: holiday.name,
+          businessName: profile.name,
+          businessType: profile.type || 'Retail',
+          businessNiche: profile.niche,
+          tone: profile.tone,
+          targetAudience: profile.targetAudience,
+          platform: selectedPlatforms[0] || 'Instagram',
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to regenerate');
+      const data = await response.json();
+      setCaptions(data.captions || []);
+      setSelectedCaptionIndex(0);
+      setCustomCaption('');
+      toast.success('New captions generated!');
+    } catch (err) {
+      toast.error('Failed to regenerate captions');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleCopyToClipboard = () => {
