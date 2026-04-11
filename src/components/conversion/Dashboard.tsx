@@ -133,7 +133,7 @@ export function Dashboard() {
         <div className="p-6 border-b border-gray-100">
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-bold text-gray-900">Upcoming Holidays</h3>
-            <Link href="/calendar" className="text-blue-600 hover:text-blue-700 flex items-center gap-1">
+            <Link href="/holidays" className="text-blue-600 hover:text-blue-700 flex items-center gap-1">
               View All
               <ArrowRight className="w-4 h-4" />
             </Link>
