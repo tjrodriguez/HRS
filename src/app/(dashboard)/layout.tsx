@@ -1,5 +1,5 @@
-import { BusinessProvider } from "@/components/context/BusinessContext"
-import { Layout as ConversionLayout } from "@/components/conversion/Layout"
+import { BusinessProvider } from "@/context/BusinessContext"
+import { Layout } from "@/components/layout/layout"
 
 export default function DashboardLayout({
   children,
@@ -8,9 +8,9 @@ export default function DashboardLayout({
 }) {
   return (
     <BusinessProvider>
-      <ConversionLayout>
+      <Layout>
         {children}
-      </ConversionLayout>
+      </Layout>
     </BusinessProvider>
   )
 }

@@ -1,1 +1,14 @@
-import { Dashboard } from '@/components/conversion/Dashboard'; export default function DashboardPage() { return <Dashboard />; }
+import { Dashboard } from '@/components/dashboard/dashboard'
+
+export const metadata = {
+  title: 'Dashboard - HoliDate',
+  description: 'View upcoming holidays and manage your marketing campaigns',
+}
+
+/**
+ * Dashboard page - main entry point for authenticated users
+ * Displays upcoming holidays and campaign overview
+ */
+export default function DashboardPage() {
+  return <Dashboard />
+}

@@ -1,1 +1,5 @@
-import { PostCreator } from '@/components/conversion/PostCreator'; export default function CampaignsPage() { return <PostCreator />; }
+import { PostCreator } from '@/components/campaigns/post-creator';
+
+export default function CampaignsPage() {
+  return <PostCreator />;
+}

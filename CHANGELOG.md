@@ -5,6 +5,7 @@ This document tracks real-time changes, feature additions, and setups for the "S
 ## [Unreleased] - 2026-04-10
 
 ### Added
+- **Debugging Skill**: Added `.github/skills/debugging/SKILL.md` to help Copilot and developers troubleshoot Next.js hydration issues, Supabase RLS policies, and Client vs. Server side errors natively.
 - **Dashboard Shell UI**: Created `AppSidebar` and `Header` using `shadcn/ui` Sidebar and Dropdown components. Set up a `(dashboard)` route group with a global persistent layout.
 - **Campaigns & Holidays UI**: Built out `holidays/page.tsx` (tracking upcoming retail events with a calendar widget) and `campaigns/page.tsx` (managing generated campaign content).
 - **AI Generator Modal**: Added `CampaignGeneratorModal` with form inputs (Holiday Name, Promotion Details, Brand Voice) using the `shadcn/ui` `Dialog` component, preparing the UI for the Groq API integration.
@@ -21,7 +22,7 @@ This document tracks real-time changes, feature additions, and setups for the "S
   - Updated `README.md`.
   - Added `docs/supabase-setup.md` and `docs/authentication.md`.
 - **Agent Guidelines**: 
-  - Created specialized Copilot Agent Skills in `.github/skills/` (`front-end`, `back-end`, `ui-ux`, `architecture`).
+  - Created specialized Copilot Agent Skills in `.github/skills/` (`front-end`, `back-end`, `ui-ux`, `architecture`, `debugging`).
   - Stored base rules and tech stack context in `.github/copilot-instructions.md` (Master Prompt Template) to ensure consistent AI generation.
 - **UI Components**:
   - Initialized `shadcn/ui` with the default Tailwind CSS v4 styling.
