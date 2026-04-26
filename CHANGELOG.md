@@ -2,6 +2,36 @@
 
 This document tracks real-time changes, feature additions, and setups for the "Smart Holiday Marketing Reminder System".
 
+## [Unreleased] - 2026-04-26
+
+### Fixed
+- **Caption Regeneration Reliability**: Reworked `src/app/api/generate-content/route.ts` caption mode so regeneration no longer accepts duplicate outputs silently.
+- **Strict Caption Parsing**: Caption responses are now accepted only when the model returns a valid JSON array payload (after optional code-fence stripping). Malformed responses trigger retries instead of immediate fallback.
+- **Uniqueness Enforcement**: Added duplicate and similarity checks against `previousCaptions` to prevent repeated or near-paraphrased regenerated captions.
+- **Retry Strategy**: Added controlled retry loop for caption generation (`GROQ_CAPTION_RETRY_LIMIT`, default `3`) with stricter instructions and increased variation pressure per attempt.
+- **Safe Fallback Behavior**: Default fallback now runs only after all retry attempts fail and uses varied templates with similarity checks to reduce repeated fallback captions.
+
+### Changed
+- **Prompt Engineering for Regeneration**:
+  - Stronger system instructions to return exactly one JSON-array caption.
+  - Explicit anti-duplication guidance: do not repeat or paraphrase prior captions.
+  - Retry-attempt prompt variants to force structure, hook, and emoji diversity.
+- **Observability**:
+  - Added attempt-level logging of raw model responses.
+  - Added logs for parse failures, similarity rejections, retry progression, and fallback activation.
+- **Cache Behavior**:
+  - Regeneration requests (`previousCaptions` present) bypass caption caching so each regenerate request evaluates fresh output.
+
+### Technical Details
+**Files Modified:**
+- `src/app/api/generate-content/route.ts` - strict parsing, retry loop, uniqueness checks, and robust fallback selection
+- `src/utils/supabase/middleware.ts` - test-time temporary change reverted; auth protection remains unchanged
+- `CHANGELOG.md` - this entry
+
+**Validation:**
+- `npx eslint src/app/api/generate-content/route.ts` passed.
+- Runtime testing confirmed previous duplicate issue before fix and validated route behavior updates in code.
+
 ## [Unreleased] - 2026-04-24
 
 ### Fixed

@@ -124,12 +124,16 @@ Complete overview of the Holiday Marketing Reminder System dashboard build.
 - Error handling with fallbacks
 - Proper HTTP status codes
 - Request validation
+- Strict caption regeneration flow with anti-duplicate controls
 
 **Features**:
 - Groq API integration (mixtral model)
 - Personalization based on business details
 - Instagram and email content generation
-- Fallback plain-text generation
+- Caption-only retry loop for malformed or duplicate outputs
+- Similarity checks against previous captions during regenerate
+- Dynamic prompt hardening across retries
+- Distinct fallback template selection after retry exhaustion
 - Comprehensive error handling
 
 ### Layout & Navigation

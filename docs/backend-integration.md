@@ -10,6 +10,7 @@ Your application now has full backend integration with:
 ## 2. **Groq AI Integration**
 - Automatic caption generation using Groq's Mixtral model
 - Context-aware content tailored to your business type and tone
+- Regeneration-safe caption flow with strict JSON parsing, retry logic, and duplicate prevention
 
 ## 3. **Server Actions** (`/src/app/api/actions/data.ts`)
 - `fetchHolidays()` - Get all upcoming holidays
@@ -17,8 +18,16 @@ Your application now has full backend integration with:
 - `fetchEngagementData()` - Get analytics data  
 - `updateProfile()` - Save profile changes
 
-## 4. **AI API Route** (`/src/app/api/generate-caption/route.ts`)
-- POST `/api/generate-caption` - Generate 3 AI captions for any holiday
+## 4. **AI API Route** (`/src/app/api/generate-content/route.ts`)
+- POST `/api/generate-content` - Generate campaign content and single-caption regeneration with Groq
+
+### Caption Regeneration Safeguards
+- Strict caption parsing: caption mode only accepts valid JSON array output.
+- Retry loop: invalid or duplicate captions are retried up to a configured limit (`GROQ_CAPTION_RETRY_LIMIT`, default `3`).
+- Similarity checks: regenerated captions are compared against `previousCaptions` to block identical or highly similar output.
+- Dynamic prompts on retries: each retry increases variation pressure (different structure/hook/emoji guidance).
+- Safe fallback: only used after all retries fail, with varied fallback templates to reduce repetition.
+- Regeneration cache bypass: caption regeneration requests skip cache to ensure fresh generation attempts.
 
 ## 5. **Business Context** (Updated)
 - Now loads real data from Supabase
@@ -110,6 +119,7 @@ Stores generated posts for scheduling
 
 ✅ Real Supabase integration with authentication  
 ✅ AI-powered caption generation (Groq Mixtral)  
+✅ Distinct-caption regeneration with retry and similarity checks  
 ✅ Auto-loading business profile on login  
 ✅ Engagement analytics dashboard  
 ✅ Profile editing with auto-save  

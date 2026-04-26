@@ -35,7 +35,7 @@ export function PostCreator() {
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['Instagram']);
   const [copied, setCopied] = useState(false);
   const [caption, setCaption] = useState('');
-  const { isGenerating, streamingCaption, generateCaption } = useGroqCaptionGenerator();
+  const { isGenerating, generateCaption } = useGroqCaptionGenerator();
 
   // Generate captions using AI
   useEffect(() => {
@@ -78,7 +78,7 @@ export function PostCreator() {
   }
 
   const hashtags = generateHashtags(holiday, profile.type || '');
-  const displayCaption = isGenerating && streamingCaption ? streamingCaption : caption;
+  const displayCaption = caption;
 
   const handleCaptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setCaption(e.target.value);

@@ -4,11 +4,7 @@ import Groq from 'groq-sdk';
 import { createClient } from '@/utils/supabase/server';
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
-const GROQ_FALLBACK_MODELS = (process.env.GROQ_FALLBACK_MODELS || 'openai/gpt-oss-20b')
-	.split(',')
-	.map((model) => model.trim())
-	.filter(Boolean);
+const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 const RESPONSE_CACHE_TTL_MS = 15 * 60 * 1000;
 const MAX_COMPLETION_TOKENS = Number(process.env.GROQ_MAX_COMPLETION_TOKENS || '512');
 const CAPTION_RETRY_LIMIT = Math.min(5, Math.max(1, Number(process.env.GROQ_CAPTION_RETRY_LIMIT || '3')));
@@ -164,26 +160,23 @@ export async function POST(request: NextRequest) {
 					retryAttempt: 0,
 				});
 
-				const { result: streamedCompletion } = await createCompletionWithModelFallback(groq, (model) =>
-					groq.chat.completions.create({
-						model,
-						messages: [
-							{
-								role: 'system',
-								content: streamSystemPrompt,
-							},
-							{
-								role: 'user',
-								content: streamUserPrompt,
-							},
-						],
-						temperature: 1,
-						top_p: 1,
-						max_completion_tokens: Math.min(MAX_COMPLETION_TOKENS, 256),
-						reasoning_effort: 'medium',
-						stream: true,
-					})
-				);
+				const streamedCompletion = await groq.chat.completions.create({
+					model: GROQ_MODEL,
+					messages: [
+						{
+							role: 'system',
+							content: streamSystemPrompt,
+						},
+						{
+							role: 'user',
+							content: streamUserPrompt,
+						},
+					],
+					temperature: 1,
+					top_p: 1,
+					max_completion_tokens: Math.min(MAX_COMPLETION_TOKENS, 256),
+					stream: true,
+				});
 
 				const encoder = new TextEncoder();
 				const readableStream = new ReadableStream({
@@ -236,30 +229,27 @@ export async function POST(request: NextRequest) {
 					retryAttempt: attempt,
 				});
 
-				const { result: completion, model } = await createCompletionWithModelFallback(groq, (candidateModel) =>
-					groq.chat.completions.create({
-						model: candidateModel,
-						messages: [
-							{
-								role: 'system',
-								content: systemPrompt,
-							},
-							{
-								role: 'user',
-								content: userPrompt,
-							},
-						],
-						temperature: Math.min(1.25, 0.9 + attempt * 0.15),
-						top_p: 1,
-						max_completion_tokens: Math.min(MAX_COMPLETION_TOKENS, 256),
-						reasoning_effort: attempt > 0 ? 'high' : 'medium',
-						stream: false,
-					})
-				);
+				const completion = await groq.chat.completions.create({
+					model: GROQ_MODEL,
+					messages: [
+						{
+							role: 'system',
+							content: systemPrompt,
+						},
+						{
+							role: 'user',
+							content: userPrompt,
+						},
+					],
+					temperature: Math.min(1.0, 0.9 + attempt * 0.15),
+					top_p: 1,
+					max_completion_tokens: Math.min(MAX_COMPLETION_TOKENS, 256),
+					stream: false,
+				});
 
 				const contentText = completion.choices?.[0]?.message?.content || '';
 				console.log(
-					`Caption generation attempt ${attempt + 1}/${CAPTION_RETRY_LIMIT} (model: ${model}) returned raw response:`,
+					`Caption generation attempt ${attempt + 1}/${CAPTION_RETRY_LIMIT} returned raw response:`,
 					contentText
 				);
 
@@ -338,64 +328,23 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		const { result: completion } = await createCompletionWithModelFallback(groq, (model) =>
-			groq.chat.completions.create({
-				model,
-				messages: [
-					{
-						role: 'system',
-						content:
-							'You are an enthusiastic Holiday Event Assistant. Generate one short festive caption under 150 characters and one concise marketing email. Output strictly valid JSON object with keys instagram (array with one caption), email, engagement, platformTips.',
-					},
-					{
-						role: 'user',
-						content:
-							`Holiday: ${holiday}\nHoliday Description: ${holidayDescription || ''}\nBusiness: ${businessName}\nBusiness Type: ${businessType}\nBusiness Description: ${businessDescription || ''}\nAudience: ${targetAudience}\nLocation: ${location}\nDate: ${eventDate || 'upcoming date'}`,
-					},
-				],
-				temperature: 1,
-				top_p: 1,
-				max_completion_tokens: MAX_COMPLETION_TOKENS,
-				reasoning_effort: 'medium',
-				stream: false,
-			})
-		);
+		// Full mode: AI model is only used for caption generation.
+		// Engagement predictions and platform tips use fallback values without AI calls.
+		const fallbackPayload = buildFullModeFallbackPayload({
+			holiday,
+			businessName,
+			businessType,
+			targetAudience,
+			location,
+			eventDate,
+		});
 
-		const contentText = completion.choices?.[0]?.message?.content || '';
-		const parsed = parseGroqJsonObject(contentText);
-
-		if (!parsed) {
-			const fallbackPayload = buildFullModeFallbackPayload({
-				holiday,
-				businessName,
-				businessType,
-				targetAudience,
-				location,
-				eventDate,
-			});
-
-			cacheResponse(cacheKey, fallbackPayload);
-			if (userId) {
-				await storeCachedResponseInDatabase(supabase, userId, cacheKey, 'full', fallbackPayload);
-			}
-			return NextResponse.json(fallbackPayload);
-		}
-
-		const payload = {
-			instagram: Array.isArray(parsed.instagram)
-				? parsed.instagram.slice(0, 1)
-				: [parsed.instagram || getTemplateCaption({ holidayName: holiday, businessName, businessType, targetAudience, platform: 'Instagram', eventDate })],
-			email: parsed.email || buildFallbackEmail({ holiday, businessName, businessType, targetAudience, location }),
-			engagement: parsed.engagement || getDefaultEngagement(),
-			platformTips: parsed.platformTips || getDefaultPlatformTips(),
-		};
-
-		cacheResponse(cacheKey, payload);
+		cacheResponse(cacheKey, fallbackPayload);
 		if (userId) {
-			await storeCachedResponseInDatabase(supabase, userId, cacheKey, 'full', payload);
+			await storeCachedResponseInDatabase(supabase, userId, cacheKey, 'full', fallbackPayload);
 		}
 
-		return NextResponse.json(payload);
+		return NextResponse.json(fallbackPayload);
 	} catch (error) {
 		console.error('Error in generate-content route:', error);
 		return NextResponse.json(
@@ -749,53 +698,3 @@ async function storeCachedResponseInDatabase(
 	}
 }
 
-function getGroqModelCandidates() {
-	return Array.from(new Set([GROQ_MODEL, ...GROQ_FALLBACK_MODELS]));
-}
-
-function isModelPermissionBlockedError(error: unknown) {
-	if (!error || typeof error !== 'object') {
-		return false;
-	}
-
-	const maybeError = error as {
-		status?: number;
-		error?: { error?: { code?: string; type?: string; message?: string } };
-		message?: string;
-	};
-
-	const code = maybeError.error?.error?.code || '';
-	const type = maybeError.error?.error?.type || '';
-	const message = maybeError.error?.error?.message || maybeError.message || '';
-
-	return (
-		maybeError.status === 403 ||
-		code === 'model_permission_blocked_project' ||
-		type === 'permissions_error' ||
-		message.includes('blocked at the project level')
-	);
-}
-
-async function createCompletionWithModelFallback<T>(
-	groq: Groq,
-	operation: (model: string) => Promise<T>
-) {
-	const modelCandidates = getGroqModelCandidates();
-	let lastError: unknown = null;
-
-	for (const model of modelCandidates) {
-		try {
-			const result = await operation(model);
-			return { result, model };
-		} catch (error) {
-			lastError = error;
-			if (!isModelPermissionBlockedError(error)) {
-				throw error;
-			}
-
-			console.warn(`Groq model '${model}' unavailable for this project. Trying next model.`);
-		}
-	}
-
-	throw lastError;
-}

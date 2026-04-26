@@ -237,11 +237,11 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
           hashtags: defaultHashtags,
         });
         
-        // Set AI-generated engagement metrics and tips
-        if (data.engagement) {
+        // Set AI-generated engagement metrics and tips with validation
+        if (data.engagement && data.engagement.reach?.min != null) {
           setEngagement(data.engagement);
         }
-        if (data.platformTips) {
+        if (data.platformTips && data.platformTips.instagram) {
           setPlatformTips(data.platformTips);
         }
         

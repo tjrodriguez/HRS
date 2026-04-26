@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Sparkles, CalendarDays, Megaphone, Loader2, Check, Copy } from "lucide-react"
 import { toast } from "sonner"
-import { useGroqCaptionGenerator } from "@/hooks/use-groq-caption-generator"
+import { useGroqCaptionGenerator, normalizeCaption } from "@/hooks/use-groq-caption-generator"
+
 
 // Define simple SVG components for platforms if lucide doesn't export them
 const Instagram = ({ className }: { className?: string }) => (
@@ -41,8 +42,10 @@ export function CampaignGeneratorModal({ children }: { children: React.ReactElem
   })
   
   const [generatedCaption, setGeneratedCaption] = useState<string | null>(null)
+  const [generatedCaptionsHistory, setGeneratedCaptionsHistory] = useState<string[]>([])
   const [copied, setCopied] = useState(false)
   const { isGenerating, generateCaption } = useGroqCaptionGenerator()
+
 
   const defaultHashtags = ["#EarthDay", "#EarthDay2026", "#Environmental", "#CoffeeShop", "#CoffeeLover", "#SpecialtyCoffee", "#LocalCoffee", "#SmallBusiness", "#SupportLocal"]
 
@@ -56,6 +59,10 @@ export function CampaignGeneratorModal({ children }: { children: React.ReactElem
     if (e) e.preventDefault()
 
     try {
+      const previousCaptions = isRegenerate
+        ? [...generatedCaptionsHistory, generatedCaption || ''].filter(Boolean)
+        : [];
+
       const nextCaption = await generateCaption({
         payload: {
           holidayName: inputData.holidayName,
@@ -67,12 +74,21 @@ export function CampaignGeneratorModal({ children }: { children: React.ReactElem
           targetAudience: "Local coffee lovers",
           platform: getActivePlatform(),
         },
-        previousCaptions: isRegenerate && generatedCaption ? [generatedCaption] : [],
+        previousCaptions,
       })
 
       if (nextCaption) {
         setGeneratedCaption(nextCaption)
+        setGeneratedCaptionsHistory(prev => {
+          const newHistory = [...prev, nextCaption]
+          // Remove duplicates and keep last 10
+          const uniqueHistory = newHistory.filter((caption, index, self) =>
+            index === self.findIndex(c => normalizeCaption(c) === normalizeCaption(caption))
+          )
+          return uniqueHistory.slice(-10)
+        })
       } else if (!generatedCaption) {
+
         setGeneratedCaption("Unable to generate a caption right now. Please try again.")
       }
     } catch (error) {
@@ -105,10 +121,12 @@ export function CampaignGeneratorModal({ children }: { children: React.ReactElem
     setOpen(false)
     setTimeout(() => {
       setGeneratedCaption(null)
+      setGeneratedCaptionsHistory([])
       setPromoDetails("")
       setBrandVoice("Friendly, approachable, and engaging")
     }, 300)
   }
+
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {

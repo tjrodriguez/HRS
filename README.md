@@ -1,32 +1,45 @@
 ﻿# Smart Holiday Marketing Reminder System
 
-A modern Next.js 16+ project integrated with the Supabase JavaScript Client (@supabase/supabase-js and @supabase/ssr), Tailwind CSS, and shadcn/ui. This system alerts small businesses to upcoming holidays and uses the Groq AI API to automatically generate ready-to-use social media captions and email copy.
+This is a Next.js 16 App Router project for small businesses to plan holiday marketing faster. It integrates Supabase (auth + Postgres), Tailwind CSS, and Groq AI to generate campaign-ready captions and email copy.
 
-## Key Features Implemented:
-- **Dashboard** with upcoming holidays, action-required alerts, and quick stats
-- **Holiday Calendar** with filtering by type (international, local, cultural, seasonal) and search functionality
-- **AI Post Creator** that generates business-specific captions and hashtags, with platform selection and post preview
-- **Analytics Dashboard** with engagement tracking, charts (bar, line, pie), and performance insights
-- **Business Profile** customization for personalized AI suggestions
+## Key Features
+- Dashboard with upcoming holidays, action-required alerts, and quick stats
+- Holiday calendar with filtering (international, local, cultural, seasonal) and search
+- AI post creator for business-specific caption and email generation
+- Campaign creation flow with caption regeneration support
+- Analytics dashboard with engagement charts and campaign performance trends
+- Business profile customization for personalized generation context
 
-## Unique Features:
-- Auto-detects holidays within 60 days and sends reminders 7 days before
-- AI-generated captions tailored to business type (Coffee Shop, Restaurant, Retail, etc.)
-- Smart hashtag suggestions combining holiday, business, and trending tags
-- Engagement predictions and best posting time recommendations
-- Beautiful charts showing performance trends across platforms
+## Caption Regeneration (Current Behavior)
+- Caption generation and regeneration run through [src/app/api/generate-content/route.ts](src/app/api/generate-content/route.ts)
+- Regeneration uses `previousCaptions` to prevent repeats
+- Caption output is strictly validated as a JSON array for caption mode
+- Invalid or duplicate/similar captions are retried (`GROQ_CAPTION_RETRY_LIMIT`, default `3`)
+- Retry prompts become more variation-focused on each attempt
+- Fallback captions are only used after retries fail and are selected from varied templates
 
-## Getting Started
-First, configure your environment variables in \.env.local\:
-\\\env
+## Environment Variables
+Create a `.env.local` file in the project root:
+
+```env
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-\\\
+GROQ_API_KEY=your-groq-api-key
+# Optional: defaults to 3
+GROQ_CAPTION_RETRY_LIMIT=3
+```
 
-Next, install dependencies and run:
-\\\ash
+## Getting Started
+
+```bash
 npm install
 npm run dev
-\\\
+```
 
-Open [http://localhost:3000](http://localhost:3000). You will be redirected to \/login\.
+Open [http://localhost:3000](http://localhost:3000). Authentication middleware protects dashboard routes, so you will be redirected to `/login` when not signed in.
+
+## Documentation Index
+- `docs/NEXT_PHASE_DEVELOPMENT_GUIDE.md` - consolidated implementation status, rollout plan, QA checklist, and next-sprint priorities
+- `docs/backend-integration.md` - backend setup and integration details
+- `docs/IMPLEMENTATION_SUMMARY.md` - implemented feature inventory
+- `docs/LAUNCH_CHECKLIST.md` - launch-readiness checklist
