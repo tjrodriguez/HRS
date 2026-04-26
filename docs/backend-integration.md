@@ -35,7 +35,7 @@ Your application now has full backend integration with:
 1. Go to [supabase.com](https://supabase.com) and create a new project
 2. Note your `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 3. In the Supabase dashboard, go to **SQL Editor**
-4. Copy the entire content of `src/migrations/001_initial_schema.sql`
+4. Copy the entire content of `supabase/migrations/001_create_schema.sql`
 5. Paste into a new query and execute
 
 ### Step 2: Environment Variables

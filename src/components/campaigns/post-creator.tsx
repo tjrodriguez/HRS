@@ -1,10 +1,11 @@
 "use client";
 import { useBusiness, Holiday } from '@/context/BusinessContext';
 import { useParams, useRouter } from 'next/navigation';
-import { Sparkles, Copy, Image as ImageIcon, RefreshCw, Calendar, TrendingUp, Check, Loader } from 'lucide-react';
+import { Sparkles, Copy, Image as ImageIcon, RefreshCw, Calendar, Check } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { useGroqCaptionGenerator } from '@/hooks/use-groq-caption-generator';
 
 const generateHashtags = (holiday: Holiday, businessType: string): string[] => {
   const holidayHashtags = [
@@ -31,12 +32,10 @@ export function PostCreator() {
   const { holidays, profile } = useBusiness();
   
   const holiday = holidays.find((h: Holiday) => h.id === Number(holidayId));
-  const [selectedCaptionIndex, setSelectedCaptionIndex] = useState(0);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['Instagram']);
   const [copied, setCopied] = useState(false);
-  const [captions, setCaptions] = useState<string[]>([]);
-  const [isGenerating, setIsGenerating] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [caption, setCaption] = useState('');
+  const { isGenerating, streamingCaption, generateCaption } = useGroqCaptionGenerator();
 
   // Generate captions using AI
   useEffect(() => {
@@ -44,48 +43,31 @@ export function PostCreator() {
       if (!holiday || !profile) return;
 
       try {
-        setIsGenerating(true);
-        setError(null);
-
-        const response = await fetch('/api/generate-caption', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            holidayName: holiday.name,
-            businessName: profile.name,
-            businessType: profile.type || 'Retail',
-            businessNiche: profile.niche,
-            tone: profile.tone,
-            targetAudience: profile.targetAudience,
+        const nextCaption = await generateCaption({
+          payload: {
+            holidayName: holiday?.name,
+            eventDate: holiday?.date,
+            businessName: profile?.name,
+            businessType: profile?.type || 'Retail',
+            businessNiche: profile?.description || profile?.type || 'General',
+            tone: profile?.tone || 'Friendly',
+            targetAudience: profile?.targetAudience || 'Customers',
             platform: selectedPlatforms[0] || 'Instagram',
-          }),
+          },
+          previousCaptions: [],
         });
 
-        if (!response.ok) {
-          throw new Error('Failed to generate captions');
-        }
-
-        const data = await response.json();
-        setCaptions(data.captions || []);
+        setCaption(nextCaption || '');
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to generate captions';
-        setError(errorMessage);
         toast.error(errorMessage);
         // Fallback to basic templates
-        setCaptions([
-          `🎉 Celebrate ${holiday.name} with us! 🌟 Visit us today for special offers and exclusive deals.`,
-          `Happy ${holiday.name}! Join us in the celebration. We have something special prepared for you. 💫`,
-          `This ${holiday.name}, experience something amazing at ${profile.name}. Don't miss out! ✨`,
-        ]);
-      } finally {
-        setIsGenerating(false);
+        setCaption(`🎉 Celebrate ${holiday.name} with us! 🌟 Visit us today for special offers and exclusive deals.`);
       }
     };
 
     generateAICaptions();
-  }, [holiday, profile, selectedPlatforms]);
+  }, [generateCaption, holiday, profile, selectedPlatforms]);
 
   if (!holiday || !profile) {
     return (
@@ -96,48 +78,41 @@ export function PostCreator() {
   }
 
   const hashtags = generateHashtags(holiday, profile.type || '');
-  const currentCaption = captions[selectedCaptionIndex] || '';
+  const displayCaption = isGenerating && streamingCaption ? streamingCaption : caption;
 
   const handleCaptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const updatedCaptions = [...captions];
-    updatedCaptions[selectedCaptionIndex] = e.target.value;
-    setCaptions(updatedCaptions);
+    setCaption(e.target.value);
   };
 
   const handleRegenerateCaption = async () => {
     try {
-      setIsGenerating(true);
-      const response = await fetch('/api/generate-caption', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          holidayName: holiday.name,
-          businessName: profile.name,
-          businessType: profile.type || 'Retail',
-          businessNiche: profile.niche,
-          tone: profile.tone,
-          targetAudience: profile.targetAudience,
+      const nextCaption = await generateCaption({
+        payload: {
+          holidayName: holiday?.name,
+          eventDate: holiday?.date,
+          businessName: profile?.name,
+          businessType: profile?.type || 'Retail',
+          businessNiche: profile?.description || profile?.type || 'General',
+          tone: profile?.tone || 'Friendly',
+          targetAudience: profile?.targetAudience || 'Customers',
           platform: selectedPlatforms[0] || 'Instagram',
-          previousCaptions: captions,
-        }),
+        },
+        previousCaptions: caption ? [caption] : [],
       });
 
-      if (!response.ok) throw new Error('Failed to regenerate');
-      const data = await response.json();
-      setCaptions(data.captions || []);
-      setSelectedCaptionIndex(0);
+      if (nextCaption) {
+        setCaption(nextCaption);
+      } else {
+        console.warn('No new captions returned from API');
+      }
       toast.success('New captions generated!');
-    } catch (err) {
+    } catch {
       toast.error('Failed to regenerate captions');
-    } finally {
-      setIsGenerating(false);
     }
   };
 
   const handleCopyToClipboard = () => {
-    const fullPost = `${currentCaption}\n\n${hashtags.join(' ')}`;
+    const fullPost = `${caption}\n\n${hashtags.join(' ')}`;
     navigator.clipboard.writeText(fullPost);
     setCopied(true);
     toast.success('Copied to clipboard!');
@@ -178,29 +153,8 @@ export function PostCreator() {
               <h3 className="font-bold text-gray-900 flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-purple-600" />
                 AI-Generated Caption
-                {captions.length > 1 && (
-                  <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                    Variation {selectedCaptionIndex + 1} of {captions.length}
-                  </span>
-                )}
               </h3>
               <div className="flex items-center gap-2">
-                {captions.length > 1 && (
-                  <>
-                    <button
-                      onClick={() => setSelectedCaptionIndex((i) => (i > 0 ? i - 1 : captions.length - 1))}
-                      className="px-2 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors text-xs font-semibold"
-                    >
-                      &larr;
-                    </button>
-                    <button
-                      onClick={() => setSelectedCaptionIndex((i) => (i < captions.length - 1 ? i + 1 : 0))}
-                      className="px-2 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors text-xs font-semibold"
-                    >
-                      &rarr;
-                    </button>
-                  </>
-                )}
                 <button
                   onClick={handleRegenerateCaption}
                   className="px-3 py-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-colors flex items-center gap-2 text-sm"
@@ -213,10 +167,11 @@ export function PostCreator() {
             </div>
             
             <textarea
-              value={currentCaption}
+              value={displayCaption}
               onChange={handleCaptionChange}
               className="w-full h-32 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
               placeholder="Your caption will appear here..."
+              disabled={isGenerating}
             />
             
             <div className="mt-4 p-3 bg-blue-50 rounded-lg">
@@ -333,45 +288,12 @@ export function PostCreator() {
                 {/* Caption */}
                 <div className="p-4">
                   <p className="text-sm mb-3">
-                    <span className="font-semibold">{profile.name}</span> {currentCaption}
+                    <span className="font-semibold">{profile.name}</span> {displayCaption}
                   </p>
                   <p className="text-sm text-blue-600">{hashtags.join(' ')}</p>
                   <p className="text-xs text-gray-400 mt-3">{format(parseISO(holiday.date), 'MMMM dd, yyyy')}</p>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Engagement Predictions */}
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
-            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-green-600" />
-              Predicted Engagement
-            </h3>
-            
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Expected Reach</span>
-                <span className="font-bold text-green-700">3,500 - 5,000</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Estimated Likes</span>
-                <span className="font-bold text-green-700">250 - 400</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Expected Comments</span>
-                <span className="font-bold text-green-700">30 - 50</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Potential Shares</span>
-                <span className="font-bold text-green-700">40 - 70</span>
-              </div>
-            </div>
-
-            <div className="mt-4 p-3 bg-white rounded-lg">
-              <p className="text-xs text-gray-600">
-                💡 <span className="font-semibold">Pro Tip:</span> Post between 9-11 AM for 35% higher engagement based on your audience data.
-              </p>
             </div>
           </div>
 

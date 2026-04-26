@@ -2,7 +2,7 @@
 import { useBusiness, type Profile } from '@/context/BusinessContext';
 import { updateProfile } from '@/utils/data';
 import { Building2, MapPin, Users, Globe, Save, CheckCircle, Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 
 export function BusinessProfile() {
@@ -34,6 +34,13 @@ export function BusinessProfile() {
   const platforms = ['Instagram', 'Facebook', 'Twitter', 'LinkedIn', 'TikTok'];
 
   const [isSaving, setIsSaving] = useState(false);
+
+  // Sync state when profile is loaded from database
+  useEffect(() => {
+    if (profile) {
+      setFormData(profile);
+    }
+  }, [profile]);
 
   const handlePlatformToggle = (platform: string) => {
     setFormData((prev: Profile) => ({
@@ -191,7 +198,7 @@ export function BusinessProfile() {
               </button>
             ))}
           </div>
-          <p className="text-sm text-muted-foreground mt-2">Select all platforms where you're active</p>
+          <p className="text-sm text-muted-foreground mt-2">Select all platforms where you&apos;re active</p>
         </div>
 
         {/* Submit Button */}

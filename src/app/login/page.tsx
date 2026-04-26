@@ -210,7 +210,7 @@ export default async function LoginPage(props: { searchParams: Promise<{ message
 
             {/* Sign Up */}
             <div className="text-center text-sm">
-              <span className="text-muted-foreground">Don't have an account? </span>
+              <span className="text-muted-foreground">Don&apos;t have an account? </span>
               <a 
                 href="/signup" 
                 className="text-primary font-semibold hover:text-primary/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded px-1"

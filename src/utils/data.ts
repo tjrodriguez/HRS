@@ -43,6 +43,17 @@ export interface EngagementData {
   platform: string;
 }
 
+type AnalyticsRow = {
+  created_at?: string;
+  metrics?: Record<string, unknown>;
+  platform?: string;
+};
+
+const getMetricValue = (metrics: Record<string, unknown> | undefined, key: string): number => {
+  const value = metrics?.[key];
+  return typeof value === "number" ? value : 0;
+};
+
 /**
  * Fetch holidays from Supabase
  */
@@ -120,20 +131,20 @@ export async function fetchEngagementData(): Promise<EngagementData[]> {
     return [];
   }
 
-  return (
-    data?.map((item: any) => ({
-      date: item.created_at,
-      views: item.metrics?.views || 0,
-      interactions: item.metrics?.interactions || 0,
-      likes: item.metrics?.likes || 0,
-      comments: item.metrics?.comments || 0,
-      shares: item.metrics?.shares || 0,
-      reach: item.metrics?.reach || 0,
-      holiday_id: undefined,
-      holiday_name: "",
-      platform: item.platform || "unknown",
-    })) || []
-  );
+  const rows = (data || []) as AnalyticsRow[];
+
+  return rows.map((item) => ({
+    date: typeof item.created_at === "string" ? item.created_at : new Date().toISOString(),
+    views: getMetricValue(item.metrics, "views"),
+    interactions: getMetricValue(item.metrics, "interactions"),
+    likes: getMetricValue(item.metrics, "likes"),
+    comments: getMetricValue(item.metrics, "comments"),
+    shares: getMetricValue(item.metrics, "shares"),
+    reach: getMetricValue(item.metrics, "reach"),
+    holiday_id: undefined,
+    holiday_name: "",
+    platform: typeof item.platform === "string" ? item.platform : "unknown",
+  }));
 }
 
 /**
@@ -156,7 +167,8 @@ export async function updateProfile(
 
   const { data, error } = await supabase
     .from("profiles")
-    .update({
+    .upsert({
+      id: user.id, // Assuming id is the primary key matched with auth.users
       name: profileData.name,
       niche: profileData.niche,
       tone: profileData.tone,
@@ -167,7 +179,6 @@ export async function updateProfile(
       social_platforms: profileData.social_platforms,
       updated_at: new Date().toISOString(),
     })
-    .eq("user_id", user.id)
     .select()
     .single();
 

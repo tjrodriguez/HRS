@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { Sparkles, CalendarDays, Megaphone, Loader2, Check, Copy, Image as ImageIcon } from "lucide-react"
+import { Sparkles, CalendarDays, Megaphone, Loader2, Check, Copy } from "lucide-react"
+import { toast } from "sonner"
+import { useGroqCaptionGenerator } from "@/hooks/use-groq-caption-generator"
 
 // Define simple SVG components for platforms if lucide doesn't export them
 const Instagram = ({ className }: { className?: string }) => (
@@ -25,12 +26,13 @@ const Twitter = ({ className }: { className?: string }) => (
 
 export function CampaignGeneratorModal({ children }: { children: React.ReactElement }) {
   const [open, setOpen] = useState(false)
-  const [isGenerating, setIsGenerating] = useState(false)
   const [inputData, setInputData] = useState({
     holidayName: "Earth Day",
     date: "Apr 22, 2026",
     description: "Celebrate sustainability and eco-friendly practices"
   })
+  const [promoDetails, setPromoDetails] = useState("")
+  const [brandVoice, setBrandVoice] = useState("Friendly, approachable, and engaging")
 
   const [platforms, setPlatforms] = useState({
     instagram: true,
@@ -40,18 +42,46 @@ export function CampaignGeneratorModal({ children }: { children: React.ReactElem
   
   const [generatedCaption, setGeneratedCaption] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const { isGenerating, generateCaption } = useGroqCaptionGenerator()
 
-  const defaultCaption = "☕️ Celebrate Earth Day with us! Start your day with our special holiday blend and cozy vibes. Brew & Bean Coffee Shop is the perfect spot to make memories this April. ✨"
   const defaultHashtags = ["#EarthDay", "#EarthDay2026", "#Environmental", "#CoffeeShop", "#CoffeeLover", "#SpecialtyCoffee", "#LocalCoffee", "#SmallBusiness", "#SupportLocal"]
 
-  const handleGenerate = async (e?: React.FormEvent<HTMLFormElement>) => {
+  const getActivePlatform = () => {
+    if (platforms.facebook) return "Facebook"
+    if (platforms.twitter) return "Twitter"
+    return "Instagram"
+  }
+
+  const handleGenerate = async (e?: React.FormEvent<HTMLFormElement>, isRegenerate = false) => {
     if (e) e.preventDefault()
-    setIsGenerating(true)
-    
-    // Simulate generation
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    setGeneratedCaption(defaultCaption)
-    setIsGenerating(false)
+
+    try {
+      const nextCaption = await generateCaption({
+        payload: {
+          holidayName: inputData.holidayName,
+          eventDate: inputData.date,
+          businessName: "Brew & Bean Coffee Shop",
+          businessType: "Coffee Shop",
+          businessNiche: promoDetails || "Holiday specials and seasonal coffee",
+          tone: brandVoice || "Friendly, approachable, and engaging",
+          targetAudience: "Local coffee lovers",
+          platform: getActivePlatform(),
+        },
+        previousCaptions: isRegenerate && generatedCaption ? [generatedCaption] : [],
+      })
+
+      if (nextCaption) {
+        setGeneratedCaption(nextCaption)
+      } else if (!generatedCaption) {
+        setGeneratedCaption("Unable to generate a caption right now. Please try again.")
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to generate caption"
+      toast.error(errorMessage)
+      if (!generatedCaption) {
+        setGeneratedCaption("Unable to generate a caption right now. Please try again.")
+      }
+    }
   }
 
   const handlePlatformChange = (key: keyof typeof platforms) => {
@@ -75,7 +105,8 @@ export function CampaignGeneratorModal({ children }: { children: React.ReactElem
     setOpen(false)
     setTimeout(() => {
       setGeneratedCaption(null)
-      setIsGenerating(false)
+      setPromoDetails("")
+      setBrandVoice("Friendly, approachable, and engaging")
     }, 300)
   }
 
@@ -118,6 +149,8 @@ export function CampaignGeneratorModal({ children }: { children: React.ReactElem
                 <Textarea 
                   id="promoDetails" 
                   placeholder="e.g. We are offering 20% off storewide and early access for VIPs." 
+                  value={promoDetails}
+                  onChange={(e) => setPromoDetails(e.target.value)}
                   className="h-20"
                 />
               </div>
@@ -127,7 +160,8 @@ export function CampaignGeneratorModal({ children }: { children: React.ReactElem
                 <Input 
                   id="brandVoice" 
                   placeholder="e.g. Excited with emojis, highly professional" 
-                  defaultValue="Friendly, approachable, and engaging"
+                  value={brandVoice}
+                  onChange={(e) => setBrandVoice(e.target.value)}
                   className="h-9"
                 />
               </div>
@@ -178,7 +212,7 @@ export function CampaignGeneratorModal({ children }: { children: React.ReactElem
                       variant="secondary" 
                       size="sm" 
                       className="h-8 bg-violet-100 text-violet-700 hover:bg-violet-200"
-                      onClick={() => handleGenerate()}
+                      onClick={() => handleGenerate(undefined, true)}
                       disabled={isGenerating}
                     >
                       {isGenerating ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}

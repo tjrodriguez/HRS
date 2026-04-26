@@ -91,7 +91,7 @@ export function Dashboard() {
                 Hi {profile?.name}! 🎉
               </h2>
               <p className="text-base md:text-lg font-medium text-white/95 max-w-2xl leading-relaxed drop-shadow-md">
-                Ready to boost your holiday marketing? Let's create amazing content that drives engagement.
+                Ready to boost your holiday marketing? Let&apos;s create amazing content that drives engagement.
               </p>
             </div>
             <div className="hidden lg:block flex-shrink-0">
@@ -325,7 +325,7 @@ export function Dashboard() {
               <div className="flex-1 w-full">
                 <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-2 tracking-tight">⚡ Create Holiday Content</h3>
                 <p className="text-muted-foreground mb-6 font-medium leading-relaxed">
-                  {needsReminder.length} holiday{needsReminder.length > 1 ? 's are' : ' is'} coming up within a week. Don't miss this opportunity to engage your audience with timely marketing!
+                  {needsReminder.length} holiday{needsReminder.length > 1 ? 's are' : ' is'} coming up within a week. Don&apos;t miss this opportunity to engage your audience with timely marketing!
                 </p>
                 <div className="space-y-3">
                   {needsReminder.map(holiday => {

@@ -11,7 +11,7 @@ export interface AnalyticsEvent {
   metrics: {
     engagement?: number;
     reach?: number;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   created_at: string;
 }

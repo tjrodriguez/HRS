@@ -2,6 +2,53 @@
 
 This document tracks real-time changes, feature additions, and setups for the "Smart Holiday Marketing Reminder System".
 
+## [Unreleased] - 2026-04-24
+
+### Fixed
+- **Caption Regeneration Logic**: Fixed infinite recursion bug in `src/app/(dashboard)/create/[id]/page.tsx` where recursive `handleRegenerateCaption()` call in finally block was causing infinite loop. Removed the offending recursive call.
+- **Tone Field Mapping**: Corrected `profile?.niche` to `profile?.tone` in caption generation request payload to use proper business profile field.
+- **TypeScript/ESLint Errors** (12 errors → 0 errors):
+  - Replaced all `any` types with proper types (`unknown`, `Campaign` interface)
+  - Fixed unsafe non-null assertion on optional chaining (`holiday?.date!`)
+  - Fixed unescaped HTML entities in JSX strings (changed `'` to `&apos;`)
+  - Converted `require()` to ES module imports in test files
+- **Caption Regeneration Functionality**: 
+  - Added cache-busting `_timestamp` parameter to force fresh API generation on each regenerate request
+  - Disabled API caching when `previousCaptions` are provided (regeneration scenario)
+  - Fixed state management race condition in `handleRegenerateCaption()` by using `setTimeout` within state update
+  - Simplified regeneration to replace entire caption list instead of merging (removed `mergeUniqueCaptions` logic)
+  - Removed duplicate reference fields in request payloads (`businessNiche` now consistently uses `profile?.description || profile?.type`)
+- **AI Prompt Improvements**:
+  - Enhanced system prompt for regeneration requests to explicitly request UNIQUE captions different from previous ones
+  - Added aggressive "IMPORTANT" instruction in `doNotRepeat` message to prevent caption repetition
+  - Made the Groq API more sensitive to avoiding duplicate generations
+
+### Changed
+- **Removed Predicted Engagement UI**: Removed "Predicted Engagement" section from `src/components/campaigns/post-creator.tsx` as per requirement to only use Groq AI for caption generation (not engagement predictions)
+- **Added Comprehensive Logging**: 
+  - Added detailed console logs to `parseCaptionArray()` for debugging JSON parsing
+  - Added streaming response logging to track API chunks and complete responses
+  - Added regeneration logging to show cache-busting mechanism in action
+  - Added API error logging to show status codes and response text
+- **TypeScript Config**: Added `"ignoreDeprecations": "6.0"` to `tsconfig.json` to silence TypeScript 5.9.3 deprecation warning about `moduleResolution=node10`
+- **Cleanup**: 
+  - Removed unused imports (`TrendingUp`, `Loader` icons)
+  - Removed unused state variables (`error`)
+  - Removed unused functions (`mergeUniqueCaptions`)
+
+### Technical Details
+**Files Modified:**
+- `src/app/(dashboard)/create/[id]/page.tsx` - Fixed regeneration infinite loop and tone field
+- `src/components/campaigns/post-creator.tsx` - Fixed regeneration, removed engagement UI, improved logging
+- `src/app/api/generate-content/route.ts` - Disabled cache for regeneration, improved prompts
+- `tsconfig.json` - Added deprecation ignore flag
+- `CHANGELOG.md` - This file
+
+**API Behavior:**
+- Previous captions now passed to Groq to ensure new generations are different
+- Cache is bypassed when regenerating (checked via `isRegenerationRequest` flag)
+- System prompt dynamically changes based on whether it's initial generation or regeneration
+
 ## [Unreleased] - 2026-04-10
 
 ### Added
