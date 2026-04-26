@@ -7,7 +7,11 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 const RESPONSE_CACHE_TTL_MS = 15 * 60 * 1000;
 const MAX_COMPLETION_TOKENS = Number(process.env.GROQ_MAX_COMPLETION_TOKENS || '512');
-const CAPTION_RETRY_LIMIT = Math.min(5, Math.max(1, Number(process.env.GROQ_CAPTION_RETRY_LIMIT || '3')));
+const CAPTION_RETRY_LIMIT = (() => {
+  const raw = process.env.GROQ_CAPTION_RETRY_LIMIT;
+  const parsed = raw ? parseInt(raw, 10) : 3;
+  return Number.isNaN(parsed) ? 3 : Math.min(5, Math.max(1, parsed));
+})();
 let missingCacheTableLogged = false;
 
 type CachedResponse = {

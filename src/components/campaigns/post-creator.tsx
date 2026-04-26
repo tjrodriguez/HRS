@@ -35,6 +35,7 @@ export function PostCreator() {
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['Instagram']);
   const [copied, setCopied] = useState(false);
   const [caption, setCaption] = useState('');
+  const [captionHistory, setCaptionHistory] = useState<string[]>([]);
   const { isGenerating, generateCaption } = useGroqCaptionGenerator();
 
   // Generate captions using AI
@@ -58,6 +59,9 @@ export function PostCreator() {
         });
 
         setCaption(nextCaption || '');
+        if (nextCaption) {
+          setCaptionHistory(prev => [...prev, nextCaption].slice(-10));
+        }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to generate captions';
         toast.error(errorMessage);
@@ -85,6 +89,7 @@ export function PostCreator() {
   };
 
   const handleRegenerateCaption = async () => {
+    if (isGenerating) return;
     try {
       const nextCaption = await generateCaption({
         payload: {
@@ -97,11 +102,12 @@ export function PostCreator() {
           targetAudience: profile?.targetAudience || 'Customers',
           platform: selectedPlatforms[0] || 'Instagram',
         },
-        previousCaptions: caption ? [caption] : [],
+        previousCaptions: caption ? [...captionHistory, caption] : captionHistory,
       });
 
       if (nextCaption) {
         setCaption(nextCaption);
+        setCaptionHistory(prev => [...prev, nextCaption].slice(-10));
       } else {
         console.warn('No new captions returned from API');
       }

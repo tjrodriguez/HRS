@@ -48,7 +48,6 @@ export function useGroqCaptionGenerator() {
           ...payload,
           previousCaptions,
           strictUniqueness: isRegeneration,
-          _timestamp: Date.now(),
         }),
       });
 
