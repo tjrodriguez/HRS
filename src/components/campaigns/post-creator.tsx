@@ -29,7 +29,7 @@ const generateHashtags = (holiday: Holiday, businessType: string): string[] => {
 export function PostCreator() {
   const { holidayId } = useParams();
   const router = useRouter();
-  const { holidays, profile } = useBusiness();
+  const { holidays, profile, isLoading: isProfileLoading } = useBusiness();
   
   const holiday = holidays.find((h: Holiday) => h.id === Number(holidayId));
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['Instagram']);
@@ -41,18 +41,25 @@ export function PostCreator() {
   // Generate captions using AI
   useEffect(() => {
     const generateAICaptions = async () => {
-      if (!holiday || !profile) return;
+      // Validate holiday and profile are available with required fields
+      if (!holiday || !profile || isProfileLoading) return;
+      
+      // Validate required profile fields for caption generation
+      if (!profile.name || !profile.type) {
+        toast.error('Please complete your business profile before generating captions.');
+        return;
+      }
 
       try {
         const nextCaption = await generateCaption({
           payload: {
-            holidayName: holiday?.name,
-            eventDate: holiday?.date,
-            businessName: profile?.name,
-            businessType: profile?.type || 'Retail',
-            businessNiche: profile?.description || profile?.type || 'General',
-            tone: profile?.tone || 'Friendly',
-            targetAudience: profile?.targetAudience || 'Customers',
+            holidayName: holiday.name,
+            eventDate: holiday.date,
+            businessName: profile.name,
+            businessType: profile.type,
+            businessNiche: profile.description || profile.type || 'General',
+            tone: profile.tone || 'Friendly',
+            targetAudience: profile.targetAudience || 'Customers',
             platform: selectedPlatforms[0] || 'Instagram',
           },
           previousCaptions: [],
@@ -71,12 +78,37 @@ export function PostCreator() {
     };
 
     generateAICaptions();
-  }, [generateCaption, holiday, profile, selectedPlatforms]);
+  }, [generateCaption, holiday, profile, isProfileLoading, selectedPlatforms]);
 
-  if (!holiday || !profile) {
+  if (!holiday) {
     return (
       <div className="bg-white rounded-xl p-12 text-center shadow-md">
         <p className="text-gray-600">Holiday not found</p>
+      </div>
+    );
+  }
+
+  if (isProfileLoading) {
+    return (
+      <div className="bg-white rounded-xl p-12 text-center shadow-md">
+        <div className="flex items-center justify-center gap-2 text-gray-600">
+          <RefreshCw className="w-5 h-5 animate-spin" />
+          <p>Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!profile?.name || !profile?.type) {
+    return (
+      <div className="bg-white rounded-xl p-12 text-center shadow-md">
+        <p className="text-gray-600 mb-4">Please complete your business profile to generate captions.</p>
+        <button
+          onClick={() => router.push('/business')}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Complete Profile
+        </button>
       </div>
     );
   }
@@ -89,17 +121,24 @@ export function PostCreator() {
   };
 
   const handleRegenerateCaption = async () => {
-    if (isGenerating) return;
+    if (isGenerating || isProfileLoading || !holiday || !profile) return;
+    
+    // Validate required profile fields
+    if (!profile.name || !profile.type) {
+      toast.error('Please complete your business profile before generating captions.');
+      return;
+    }
+    
     try {
       const nextCaption = await generateCaption({
         payload: {
-          holidayName: holiday?.name,
-          eventDate: holiday?.date,
-          businessName: profile?.name,
-          businessType: profile?.type || 'Retail',
-          businessNiche: profile?.description || profile?.type || 'General',
-          tone: profile?.tone || 'Friendly',
-          targetAudience: profile?.targetAudience || 'Customers',
+          holidayName: holiday.name,
+          eventDate: holiday.date,
+          businessName: profile.name,
+          businessType: profile.type,
+          businessNiche: profile.description || profile.type || 'General',
+          tone: profile.tone || 'Friendly',
+          targetAudience: profile.targetAudience || 'Customers',
           platform: selectedPlatforms[0] || 'Instagram',
         },
         previousCaptions: caption ? [...captionHistory, caption] : captionHistory,
@@ -164,7 +203,7 @@ export function PostCreator() {
                 <button
                   onClick={handleRegenerateCaption}
                   className="px-3 py-2 bg-purple-100 text-purple-600 rounded-lg hover:bg-purple-200 transition-colors flex items-center gap-2 text-sm"
-                  disabled={isGenerating}
+                  disabled={isGenerating || isProfileLoading || !profile?.name || !profile?.type}
                 >
                   <RefreshCw className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} />
                   {isGenerating ? 'Generating...' : 'Generate New'}

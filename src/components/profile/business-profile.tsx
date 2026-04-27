@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 
 export function BusinessProfile() {
-  const { profile, setProfile } = useBusiness();
+  const { profile, setProfile, refetch } = useBusiness();
   const [formData, setFormData] = useState<Profile>(profile || {
     name: '',
     type: 'Coffee Shop',
@@ -68,7 +68,10 @@ export function BusinessProfile() {
       });
 
       if (updated || process.env.NODE_ENV === 'development') {
+        // Update local state with form data
         setProfile(formData);
+        // Refetch from database to ensure synchronization
+        await refetch();
         toast.success('Business profile updated successfully!');
       } else {
         throw new Error('Failed to update profile');

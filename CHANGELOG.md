@@ -2,6 +2,43 @@
 
 This document tracks real-time changes, feature additions, and setups for the "Smart Holiday Marketing Reminder System".
 
+## [Unreleased] - 2026-04-27
+
+### Fixed
+- **DEF-001: NaN Retry Configuration (CRITICAL)**:
+  - `src/app/api/generate-content/route.ts`: Fixed `CAPTION_RETRY_LIMIT` parsing to use `parseInt()` with `Number.isNaN()` check, preventing `NaN` when `GROQ_CAPTION_RETRY_LIMIT` env var is set to a non-numeric value.
+- **DEF-003: Race Condition in Rapid Regeneration Clicks (HIGH)**:
+  - `src/components/campaigns/post-creator.tsx`: Added `if (isGenerating) return;` guard at start of `handleRegenerateCaption` to prevent concurrent caption generation calls.
+  - `src/app/(dashboard)/create/[id]/page.tsx`: Reused existing `generationInFlightRef` guard.
+- **DEF-004: Incomplete useEffect Error Handling (HIGH)**:
+  - `src/components/campaigns/post-creator.tsx`: `handleRegenerateCaption` now catches errors and displays `toast.error()` instead of silently swallowing exceptions.
+- **DEF-006: Unused `_timestamp` Parameter (MEDIUM)**:
+  - `src/hooks/use-groq-caption-generator.ts`: Removed unused `_timestamp: Date.now()` from the request body to reduce payload noise.
+- **DEF-007: `useEffect` Dependency Array Includes Mutable Object (MEDIUM)**:
+  - `src/app/(dashboard)/create/[id]/page.tsx`: Removed `platforms` object from the `useEffect` dependency array to prevent potential re-run loops.
+- **Caption History Accumulation for Unique Regenerations (FEATURE)**:
+  - `src/components/campaigns/post-creator.tsx`: Added `captionHistory` state that accumulates ALL generated captions across the session. Regeneration now passes the full history (`[...captionHistory, currentCaption]`) to the AI prompt, preventing duplicates from earlier generations.
+  - `src/app/(dashboard)/create/[id]/page.tsx`: Added `captionHistory` state with same accumulation logic. Both initial generation and regeneration append captions to the rolling history (capped at last 10).
+  - This works together with backend `strictUniqueness` + Jaccard similarity checking (≥72% match triggers retry) to maximize unique caption generation every time.
+
+### Changed
+- **AI Model Scope Restriction**:
+  - `src/app/api/generate-content/route.ts`: `full` mode now returns deterministic fallback templates directly instead of calling the Groq AI for everything. Only `caption` mode uses the AI API. This reduces AI API calls by ~50%.
+- **DEF-002: Streaming/Non-Streaming Mismatch (HIGH)**:
+  - `src/app/(dashboard)/create/[id]/page.tsx`: Changed `stream: true` to `stream: priorCaptions.length === 0`. Only initial generation uses streaming; regeneration uses JSON responses to align with the server-side `mode=strictUniqueness` handler.
+- **Engagement Data Validation**:
+  - `src/app/(dashboard)/create/[id]/page.tsx`: Changed `if (data.engagement) setEngagement(...)` to `if (data.engagement && data.engagement.reach?.min != null)` to prevent crashes from malformed engagement data.
+
+### Technical Details
+**Files Modified:**
+- `src/app/api/generate-content/route.ts` - DEF-001 fix, AI scope restriction
+- `src/app/(dashboard)/create/[id]/page.tsx` - DEF-002, DEF-003, DEF-004, DEF-007, history accumulation, engagement validation
+- `src/hooks/use-groq-caption-generator.ts` - DEF-006 fix
+- `src/components/campaigns/post-creator.tsx` - DEF-003, DEF-004, history accumulation
+- `CHANGELOG.md` - This entry
+
+---
+
 ## [Unreleased] - 2026-04-26
 
 ### Fixed

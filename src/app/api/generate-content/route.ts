@@ -130,8 +130,35 @@ export async function POST(request: NextRequest) {
 		const groq = new Groq({ apiKey: GROQ_API_KEY });
 
 		if (mode === 'caption') {
-			if (!holidayName || !businessName || !businessType || !tone) {
-				return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+			// Validate required fields with detailed error messages
+			const missingFields: string[] = [];
+			
+			if (!holidayName || holidayName.trim() === '') {
+				missingFields.push('holidayName');
+			}
+			if (!businessName || businessName.trim() === '') {
+				missingFields.push('businessName');
+			}
+			if (!businessType || businessType.trim() === '') {
+				missingFields.push('businessType');
+			}
+			if (!tone || tone.trim() === '') {
+				missingFields.push('tone');
+			}
+			
+			if (missingFields.length > 0) {
+				console.error('Caption generation validation failed:', {
+					missingFields,
+					receivedPayload: { holidayName, businessName, businessType, tone, businessNiche, targetAudience, platform },
+				});
+				return NextResponse.json(
+					{ 
+						error: 'Missing required fields', 
+						details: missingFields,
+						message: `The following fields are required: ${missingFields.join(', ')}` 
+					}, 
+					{ status: 400 }
+				);
 			}
 
 			const disallowedCaptions = [...normalizedPreviousCaptions];

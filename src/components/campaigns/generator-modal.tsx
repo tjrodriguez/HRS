@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Sparkles, CalendarDays, Megaphone, Loader2, Check, Copy } from "lucide-react"
 import { toast } from "sonner"
 import { useGroqCaptionGenerator, normalizeCaption } from "@/hooks/use-groq-caption-generator"
+import { useBusiness } from "@/context/BusinessContext"
 
 
 // Define simple SVG components for platforms if lucide doesn't export them
@@ -45,6 +46,7 @@ export function CampaignGeneratorModal({ children }: { children: React.ReactElem
   const [generatedCaptionsHistory, setGeneratedCaptionsHistory] = useState<string[]>([])
   const [copied, setCopied] = useState(false)
   const { isGenerating, generateCaption } = useGroqCaptionGenerator()
+  const { profile, isLoading: isProfileLoading } = useBusiness()
 
 
   const defaultHashtags = ["#EarthDay", "#EarthDay2026", "#Environmental", "#CoffeeShop", "#CoffeeLover", "#SpecialtyCoffee", "#LocalCoffee", "#SmallBusiness", "#SupportLocal"]
@@ -63,15 +65,21 @@ export function CampaignGeneratorModal({ children }: { children: React.ReactElem
         ? [...generatedCaptionsHistory, generatedCaption || ''].filter(Boolean)
         : [];
 
+      // Validate profile is loaded with required fields
+      if (!profile?.name || !profile?.type) {
+        toast.error("Please complete your business profile before generating captions.")
+        return
+      }
+
       const nextCaption = await generateCaption({
         payload: {
           holidayName: inputData.holidayName,
           eventDate: inputData.date,
-          businessName: "Brew & Bean Coffee Shop",
-          businessType: "Coffee Shop",
-          businessNiche: promoDetails || "Holiday specials and seasonal coffee",
-          tone: brandVoice || "Friendly, approachable, and engaging",
-          targetAudience: "Local coffee lovers",
+          businessName: profile.name,
+          businessType: profile.type,
+          businessNiche: promoDetails || profile.description || profile.type || "General",
+          tone: brandVoice || profile.tone || "Friendly",
+          targetAudience: profile.targetAudience || "Customers",
           platform: getActivePlatform(),
         },
         previousCaptions,
@@ -189,11 +197,16 @@ export function CampaignGeneratorModal({ children }: { children: React.ReactElem
               <Button type="button" variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isGenerating}>
+              <Button type="submit" disabled={isGenerating || isProfileLoading || !profile?.name || !profile?.type}>
                 {isGenerating ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Generating via Groq...
+                  </>
+                ) : isProfileLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Loading profile...
                   </>
                 ) : (
                   "Create Posts"
@@ -329,11 +342,11 @@ export function CampaignGeneratorModal({ children }: { children: React.ReactElem
                   {/* Social Header */}
                   <div className="flex items-center gap-3 p-4 border-b">
                     <div className="h-10 w-10 rounded-full bg-violet-600 flex items-center justify-center text-white font-bold">
-                      B
+                      {(profile?.name?.[0] || "B").toUpperCase()}
                     </div>
                     <div>
-                      <p className="text-sm font-bold leading-none">Brew & Bean Coffee Shop</p>
-                      <p className="text-xs text-muted-foreground mt-1">San Francisco, CA</p>
+                      <p className="text-sm font-bold leading-none">{profile?.name || "Your Business"}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{profile?.location || "Your Location"}</p>
                     </div>
                   </div>
 
@@ -347,7 +360,7 @@ export function CampaignGeneratorModal({ children }: { children: React.ReactElem
                   {/* Post Content */}
                   <div className="p-4">
                     <p className="text-sm">
-                      <span className="font-bold mr-2">Brew & Bean Coffee Shop</span>
+                      <span className="font-bold mr-2">{profile?.name || "Your Business"}</span>
                       {!isGenerating ? generatedCaption : <span className="text-muted-foreground">Loading caption...</span>}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-x-1 gap-y-1">
