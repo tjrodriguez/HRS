@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CalendarDays, ShoppingBag, Sparkles, Search, Filter } from "lucide-react"
-import { CampaignGeneratorModal } from "@/components/campaigns/generator-modal"
+import { CampaignGeneratorModal } from "@/components/holidays/generator-modal"
 import { Calendar } from "@/components/ui/calendar"
 
 export type Holiday = {
-  id: number
+  id: string
   name: string
   date: string
   type: string

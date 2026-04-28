@@ -1,4 +1,5 @@
 export * from './analytics'
 export * from './campaigns'
 export * from './profile'
+export * from './templates'
 export * from './utils'

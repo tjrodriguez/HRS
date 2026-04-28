@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { fetchHolidays, fetchProfile, fetchEngagementData, Holiday as DbHoliday, EngagementData as DbEngagementData } from "@/utils/data";
+import { fetchHolidays, fetchProfile, fetchEngagementData, fetchCampaigns, fetchCampaignAnalytics, fetchTemplates, Holiday as DbHoliday, EngagementData as DbEngagementData, Campaign as DbCampaign, CampaignAnalytics as DbCampaignAnalytics, Template as DbTemplate } from "@/utils/data";
 
 /**
  * Context types with normalized field names
@@ -19,13 +19,43 @@ export interface Profile {
 }
 
 export interface Holiday {
-  id: number;
+  id: string;
   name: string;
   date: string;
   type: string;
   reminderSent?: boolean;
   description?: string;
   category?: string;
+}
+
+export interface Campaign {
+  id: string;
+  user_id: string;
+  holiday_id: string;
+  content: string;
+  platforms: string[];
+  status: "draft" | "scheduled" | "published" | "archived";
+  scheduled_date?: string;
+  created_at: string;
+  updated_at: string;
+  holiday?: Holiday;
+}
+
+export interface CampaignAnalytics {
+  campaign: Campaign;
+  events: {
+    event_type: string;
+    platform: string;
+    metrics: Record<string, unknown>;
+    created_at: string;
+  }[];
+  totals: {
+    likes: number;
+    comments: number;
+    shares: number;
+    reach: number;
+    engagementRate: number;
+  };
 }
 
 export interface EngagementMetrics {
@@ -38,14 +68,34 @@ export interface EngagementMetrics {
   reach: number;
   platform: string;
   holidayName: string;
-  holidayId?: number;
+  holidayId?: string;
+}
+
+export interface Template {
+  id: string;
+  user_id: string;
+  name: string;
+  content: string;
+  hashtags: string[];
+  category: string;
+  holiday_name?: string;
+  business_type?: string;
+  tone?: string;
+  platforms: string[];
+  is_favorite: boolean;
+  usage_count: number;
+  created_at: string;
+  updated_at: string;
 }
 
 interface BusinessContextType {
   profile: Profile;
   setProfile: (p: Profile) => void;
   holidays: Holiday[];
+  campaigns: Campaign[];
+  campaignAnalytics: CampaignAnalytics[];
   engagementData: EngagementMetrics[];
+  templates: Template[];
   isLoading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
@@ -64,19 +114,22 @@ const fallbackProfile: Profile = {
 };
 
 const fallbackHolidays: Holiday[] = [
-  { id: 1, name: "New Year", date: "2026-01-01", type: "Federal", reminderSent: false, description: "Start of the year", category: "Holiday" },
-  { id: 2, name: "Valentine's Day", date: "2026-02-14", type: "Observance", reminderSent: false, description: "Day of love", category: "Holiday" },
-  { id: 3, name: "St. Patrick's Day", date: "2026-03-17", type: "Observance", reminderSent: false, description: "Irish celebration", category: "Holiday" },
-  { id: 4, name: "Easter", date: "2026-04-05", type: "Religious", reminderSent: false, description: "Christian holiday", category: "Holiday" },
-  { id: 5, name: "Earth Day", date: "2026-04-22", type: "International", reminderSent: false, description: "Celebrate sustainability and eco-friendly practices", category: "Holiday" },
-  { id: 6, name: "Mother's Day", date: "2026-05-10", type: "Observance", reminderSent: false, description: "Day to celebrate mothers", category: "Holiday" },
-  { id: 7, name: "Father's Day", date: "2026-06-21", type: "Observance", reminderSent: false, description: "Day to celebrate fathers", category: "Holiday" },
-  { id: 8, name: "Independence Day", date: "2026-07-04", type: "Federal", reminderSent: false, description: "US Independence Day", category: "Holiday" },
-  { id: 9, name: "Labor Day", date: "2026-09-07", type: "Federal", reminderSent: false, description: "Day celebrating workers", category: "Holiday" },
-  { id: 10, name: "Halloween", date: "2026-10-31", type: "Observance", reminderSent: false, description: "Day of costumes and treats", category: "Holiday" },
-  { id: 11, name: "Thanksgiving", date: "2026-11-26", type: "Federal", reminderSent: false, description: "Day of gratitude", category: "Holiday" },
-  { id: 12, name: "Cyber Monday", date: "2026-11-30", type: "Commercial", reminderSent: false, description: "Online shopping event", category: "Holiday" },
-  { id: 13, name: "Christmas", date: "2026-12-25", type: "Federal", reminderSent: false, description: "Christian holiday celebrating Jesus's birth", category: "Holiday" },
+  { id: "new-year", name: "New Year", date: "2026-01-01", type: "Seasonal", reminderSent: false, description: "Start the year with fresh beginnings", category: "Seasonal" },
+  { id: "valentine", name: "Valentine's Day", date: "2026-02-14", type: "Love", reminderSent: false, description: "Celebrate love and relationships", category: "Love" },
+  { id: "stpatrick", name: "St. Patrick's Day", date: "2026-03-17", type: "Cultural", reminderSent: false, description: "Celebrate Irish heritage and culture", category: "Cultural" },
+  { id: "easter", name: "Easter", date: "2026-04-05", type: "Religious", reminderSent: false, description: "Celebrate the Easter season", category: "Religious" },
+  { id: "earthday", name: "Earth Day", date: "2026-04-22", type: "Environmental", reminderSent: false, description: "Celebrate and protect our planet", category: "Environmental" },
+  { id: "mothersday", name: "Mother's Day", date: "2026-05-10", type: "Family", reminderSent: false, description: "Honor and celebrate mothers", category: "Family" },
+  { id: "juneteenth", name: "Juneteenth", date: "2026-06-19", type: "Historical", reminderSent: false, description: "Celebrate freedom and independence", category: "Historical" },
+  { id: "summersol", name: "Summer Solstice", date: "2026-06-21", type: "Seasonal", reminderSent: false, description: "Celebrate the longest day of the year", category: "Seasonal" },
+  { id: "independence", name: "Independence Day", date: "2026-07-04", type: "National", reminderSent: false, description: "Celebrate national independence", category: "National" },
+  { id: "laborday", name: "Labor Day", date: "2026-09-07", type: "Historical", reminderSent: false, description: "Honor the labor movement", category: "Historical" },
+  { id: "halloween", name: "Halloween", date: "2026-10-31", type: "Seasonal", reminderSent: false, description: "Celebrate spooky season", category: "Seasonal" },
+  { id: "thanksgiving", name: "Thanksgiving", date: "2026-11-26", type: "Family", reminderSent: false, description: "Give thanks and celebrate together", category: "Family" },
+  { id: "blackfriday", name: "Black Friday", date: "2026-11-27", type: "Shopping", reminderSent: false, description: "Start holiday shopping season", category: "Shopping" },
+  { id: "cybermonday", name: "Cyber Monday", date: "2026-12-01", type: "Shopping", reminderSent: false, description: "Online shopping extravaganza", category: "Shopping" },
+  { id: "christmas", name: "Christmas", date: "2026-12-25", type: "Religious", reminderSent: false, description: "Celebrate the holiday season", category: "Religious" },
+  { id: "newyearseve", name: "New Year's Eve", date: "2026-12-31", type: "Seasonal", reminderSent: false, description: "Ring in the new year", category: "Seasonal" },
 ];
 
 const fallbackEngagementData: EngagementMetrics[] = [
@@ -90,7 +143,10 @@ const BusinessContext = createContext<BusinessContextType | undefined>(undefined
 export function BusinessProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile>(fallbackProfile);
   const [holidays, setHolidays] = useState<Holiday[]>(fallbackHolidays);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaignAnalytics, setCampaignAnalytics] = useState<CampaignAnalytics[]>([]);
   const [engagementData, setEngagementData] = useState<EngagementMetrics[]>(fallbackEngagementData);
+  const [templates, setTemplates] = useState<Template[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,10 +156,13 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       setError(null);
 
       // Fetch data in parallel
-      const [profileData, holidaysData, engagementDataResult] = await Promise.all([
+      const [profileData, holidaysData, engagementDataResult, campaignsData, campaignAnalyticsData, templatesData] = await Promise.all([
         fetchProfile(),
         fetchHolidays(),
         fetchEngagementData(),
+        fetchCampaigns(),
+        fetchCampaignAnalytics(),
+        fetchTemplates(),
       ]);
 
       // Update profile if data exists, otherwise use fallback
@@ -151,6 +210,41 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
         }));
         setEngagementData(normalizedEngagement);
       }
+
+      // Update campaigns
+      if (campaignsData && campaignsData.length > 0) {
+        const normalizedCampaigns: Campaign[] = campaignsData.map((c: DbCampaign) => ({
+          id: c.id,
+          user_id: c.user_id,
+          holiday_id: c.holiday_id,
+          content: c.content,
+          platforms: c.platforms || [],
+          status: c.status,
+          scheduled_date: c.scheduled_date,
+          created_at: c.created_at,
+          updated_at: c.updated_at,
+          holiday: c.holiday ? {
+            id: c.holiday.id,
+            name: c.holiday.name,
+            date: c.holiday.date,
+            type: c.holiday.type,
+            reminderSent: c.holiday.reminder_sent,
+            description: c.holiday.description,
+            category: c.holiday.category,
+          } : undefined,
+        }));
+        setCampaigns(normalizedCampaigns);
+      }
+
+      // Update campaign analytics
+      if (campaignAnalyticsData && campaignAnalyticsData.length > 0) {
+        setCampaignAnalytics(campaignAnalyticsData as CampaignAnalytics[]);
+      }
+
+      // Update templates
+      if (templatesData && templatesData.length > 0) {
+        setTemplates(templatesData as Template[]);
+      }
     } catch (err) {
       // Only set error if it's not just an auth session missing error
       const errorMsg = err instanceof Error ? err.message : "Failed to load data";
@@ -175,7 +269,10 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
         profile,
         setProfile,
         holidays,
+        campaigns,
+        campaignAnalytics,
         engagementData,
+        templates,
         isLoading,
         error,
         refetch: loadData,

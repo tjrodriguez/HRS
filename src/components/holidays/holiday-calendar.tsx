@@ -44,24 +44,14 @@ export function HolidayCalendar() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="relative overflow-hidden rounded-3xl shadow-2xl">
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary via-secondary to-accent opacity-90"></div>
-        <div className="absolute inset-0 bg-gradient-to-tr from-secondary/20 to-accent/10 mix-blend-overlay"></div>
-        
-        {/* Decorative blobs */}
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-white/20 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-pulse"></div>
-        <div className="absolute -bottom-32 -left-32 w-80 h-80 bg-accent/30 rounded-full mix-blend-overlay filter blur-3xl opacity-40" style={{animationDelay: '1s'}}></div>
-        
-        <div className="relative p-8 md:p-12 z-10 backdrop-blur-md border border-white/20 rounded-3xl">
-          <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-3 tracking-tight drop-shadow-lg">Holiday Calendar</h2>
-          <p className="text-lg font-medium text-white/95 drop-shadow-md">Browse all holidays and plan your festive marketing campaigns</p>
-        </div>
+      {/* Header - Flat solid color design */}
+      <div className="bg-primary rounded-3xl shadow-xl p-8 md:p-12">
+        <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-3 tracking-tight">Holiday Calendar</h2>
+        <p className="text-lg font-medium text-white/90">Browse all holidays and plan your festive marketing campaigns</p>
       </div>
 
       {/* Filters */}
-      <div className="rounded-3xl bg-gradient-to-br from-card/70 to-card/40 backdrop-blur-xl shadow-xl border border-white/20 p-6 md:p-8 transition-all hover:shadow-2xl hover:border-white/40">
+      <div className="rounded-3xl bg-card shadow-lg border border-border p-6 md:p-8 transition-all hover:shadow-xl">
         <div className="grid md:grid-cols-3 gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -115,8 +105,8 @@ export function HolidayCalendar() {
           const monthDate = parseISO(monthKey + '-01');
           
           return (
-            <div key={monthKey} className="rounded-3xl bg-gradient-to-br from-card/70 to-card/40 backdrop-blur-xl shadow-xl border border-white/20 overflow-hidden transition-all hover:shadow-2xl hover:border-white/40">
-              <div className="bg-gradient-to-r from-primary/20 via-secondary/20 to-accent/20 backdrop-blur-md p-6 border-b border-white/10">
+            <div key={monthKey} className="rounded-3xl bg-card shadow-lg border border-border overflow-hidden transition-all hover:shadow-xl">
+              <div className="bg-muted p-6 border-b border-border">
                 <h3 className="text-2xl font-bold text-foreground tracking-tight">
                   {format(monthDate, 'MMMM yyyy')}
                 </h3>
@@ -132,10 +122,10 @@ export function HolidayCalendar() {
                     <div key={holiday.id} className="p-6 md:p-8 hover:bg-white/5 transition-all duration-300 group">
                       <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 lg:gap-4">
                         <div className="flex items-start gap-4 flex-1 min-w-0">
-                          <div className={`w-16 h-16 md:w-20 md:h-20 flex-shrink-0 rounded-2xl flex flex-col items-center justify-center shadow-lg border transition-all ${
-                            isPast ? 'bg-muted/30 border-muted/40' :
-                            isWithinWeek ? 'bg-gradient-to-br from-destructive/40 to-destructive/20 border-destructive/40 scale-110' : 
-                            'bg-gradient-to-br from-primary/40 to-primary/20 border-primary/30 group-hover:scale-105'
+                          <div className={`w-16 h-16 md:w-20 md:h-20 flex-shrink-0 rounded-2xl flex flex-col items-center justify-center shadow-md border-2 transition-all ${
+                            isPast ? 'bg-muted border-muted-foreground/20' :
+                            isWithinWeek ? 'bg-destructive/10 border-destructive scale-110' : 
+                            'bg-primary/10 border-primary group-hover:scale-105'
                           }`}>
                             <div className={`text-xs font-bold uppercase tracking-wider ${
                               isPast ? 'text-muted-foreground/60' :
@@ -194,10 +184,10 @@ export function HolidayCalendar() {
                         {!isPast && (
                           <Link
                             href={`/create/${holiday.id}`}
-                            className={`flex-shrink-0 px-6 py-3 rounded-xl transition-all duration-300 flex items-center gap-2 whitespace-nowrap font-bold shadow-md hover:shadow-lg hover:-translate-y-1 border ${
+                            className={`flex-shrink-0 px-6 py-3 rounded-xl transition-all duration-200 flex items-center gap-2 whitespace-nowrap font-bold shadow-md hover:shadow-lg hover:-translate-y-0.5 border ${
                               isWithinWeek 
-                                ? 'bg-gradient-to-r from-destructive to-primary text-white border-white/20 hover:scale-105' 
-                                : 'bg-gradient-to-r from-primary/40 to-primary/20 text-primary border-primary/40 hover:from-primary/60 hover:to-primary/40'
+                                ? 'bg-destructive text-white border-destructive hover:bg-destructive-dark' 
+                                : 'bg-primary text-white border-primary hover:bg-primary-dark'
                             }`}
                           >
                             <Sparkles className="w-4 h-4" />
@@ -221,7 +211,7 @@ export function HolidayCalendar() {
       </div>
 
       {filteredHolidays.length === 0 && (
-        <div className="rounded-3xl bg-gradient-to-br from-card/70 to-card/40 backdrop-blur-xl shadow-xl border border-white/20 p-12 md:p-16 text-center">
+        <div className="rounded-3xl bg-card shadow-lg border border-border p-12 md:p-16 text-center">
           <div className="w-20 h-20 bg-muted/20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg border border-white/10">
             <Calendar className="w-10 h-10 text-muted-foreground/50" />
           </div>

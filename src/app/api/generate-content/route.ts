@@ -50,7 +50,6 @@ interface EngagementPrediction {
 interface PlatformTips {
 	instagram: string;
 	facebook: string;
-	twitter: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -160,6 +159,21 @@ export async function POST(request: NextRequest) {
 					{ status: 400 }
 				);
 			}
+
+		// Validate platform is one of the supported values (case-insensitive)
+		const supportedPlatforms = ['Instagram', 'Facebook'];
+		const normalizedPlatform = platform ? platform.charAt(0).toUpperCase() + platform.slice(1).toLowerCase() : platform;
+		if (normalizedPlatform && !supportedPlatforms.includes(normalizedPlatform)) {
+			console.error('Invalid platform:', { platform, normalizedPlatform, supportedPlatforms });
+			return NextResponse.json(
+				{
+					error: 'Invalid platform',
+					details: ['platform'],
+					message: `Platform must be one of: ${supportedPlatforms.join(', ')}`
+				},
+				{ status: 400 }
+			);
+		}
 
 			const disallowedCaptions = [...normalizedPreviousCaptions];
 			let usedFallback = false;
@@ -636,7 +650,6 @@ function getDefaultPlatformTips(): PlatformTips {
 	return {
 		instagram: 'Use hashtags and post at peak hours (9-11 AM or 7-9 PM).',
 		facebook: 'Ask a simple question to invite comments and shares.',
-		twitter: 'Keep it short, add one hook, and engage quickly with replies.',
 	};
 }
 

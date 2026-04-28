@@ -15,7 +15,6 @@ export interface Campaign {
   platforms: {
     instagram: boolean;
     facebook: boolean;
-    twitter: boolean;
   };
   status: 'draft' | 'scheduled' | 'posted' | 'archived';
   scheduled_date: string | null;

@@ -1,7 +1,7 @@
 "use client";
 import { useBusiness, type Profile } from '@/context/BusinessContext';
 import { updateProfile } from '@/utils/data';
-import { Building2, MapPin, Users, Globe, Save, CheckCircle, Loader2 } from 'lucide-react';
+import { Building2, MapPin, Users, Save, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 
@@ -13,7 +13,6 @@ export function BusinessProfile() {
     description: '',
     location: '',
     targetAudience: '',
-    socialPlatforms: ['Instagram'],
     niche: 'Retail',
     tone: 'Friendly',
   });
@@ -31,8 +30,6 @@ export function BusinessProfile() {
     'Other',
   ];
 
-  const platforms = ['Instagram', 'Facebook', 'Twitter', 'LinkedIn', 'TikTok'];
-
   const [isSaving, setIsSaving] = useState(false);
 
   // Sync state when profile is loaded from database
@@ -41,15 +38,6 @@ export function BusinessProfile() {
       setFormData(profile);
     }
   }, [profile]);
-
-  const handlePlatformToggle = (platform: string) => {
-    setFormData((prev: Profile) => ({
-      ...prev,
-      socialPlatforms: prev.socialPlatforms.includes(platform)
-        ? prev.socialPlatforms.filter((p: string) => p !== platform)
-        : [...prev.socialPlatforms, platform]
-    }));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +50,6 @@ export function BusinessProfile() {
         description: formData.description,
         location: formData.location,
         target_audience: formData.targetAudience,
-        social_platforms: formData.socialPlatforms,
         niche: formData.niche,
         tone: formData.tone,
       });
@@ -172,36 +159,6 @@ export function BusinessProfile() {
             placeholder="e.g., Coffee enthusiasts, remote workers, students"
             required
           />
-        </div>
-
-        {/* Social Platforms */}
-        <div>
-          <label className="block text-sm font-semibold text-foreground mb-3">
-            <Globe className="w-4 h-4 inline mr-2" />
-            Social Media Platforms
-          </label>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {platforms.map(platform => (
-              <button
-                key={platform}
-                type="button"
-                onClick={() => handlePlatformToggle(platform)}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  formData.socialPlatforms.includes(platform)
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border hover:border-input text-muted-foreground'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold">{platform}</span>
-                  {formData.socialPlatforms.includes(platform) && (
-                    <CheckCircle className="w-5 h-5 text-primary" />
-                  )}
-                </div>
-              </button>
-            ))}
-          </div>
-          <p className="text-sm text-muted-foreground mt-2">Select all platforms where you&apos;re active</p>
         </div>
 
         {/* Submit Button */}

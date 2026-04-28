@@ -2,13 +2,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useBusiness, Holiday, Profile } from '@/context/BusinessContext';
-import { Sparkles, Copy, AlertCircle, Loader2, CalendarDays, Check, TrendingUp, Maximize2, X } from 'lucide-react';
+import { Sparkles, Copy, AlertCircle, Loader2, CalendarDays, Check, TrendingUp, Maximize2, X, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { parseISO, format } from 'date-fns';
 import { createCampaign, scheduleCampaign, updateCampaign, Campaign } from '@/lib/campaigns';
+import { createTemplate, generateTemplateName } from '@/lib/templates';
 
 // Social media SVG components
 const InstagramIcon = ({ className }: { className?: string }) => (
@@ -17,10 +18,6 @@ const InstagramIcon = ({ className }: { className?: string }) => (
 
 const FacebookIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 2h-3a6 6 0 0 0-6 6v3H7v4h2v8h4v-8h3l1-4h-4V8a2 2 0 0 1 2-2h3z"/></svg>
-);
-
-const TwitterIcon = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2s9 5 20 5a9.5 9.5 0 0 0-9-5.5c4.75 2.25 7-7 7-7"/></svg>
 );
 
 export default function CreatePage() {
@@ -34,11 +31,11 @@ export default function CreatePage() {
   const [fullscreenPreview, setFullscreenPreview] = useState(false);
   const [editingCaption, setEditingCaption] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
   const [campaignId, setCampaignId] = useState<string | null>(null);
   const [platforms, setPlatforms] = useState({
     instagram: true,
     facebook: false,
-    twitter: false,
   });
   const [content, setContent] = useState({
     instagram: '',
@@ -54,7 +51,6 @@ export default function CreatePage() {
   const [platformTips, setPlatformTips] = useState({
     instagram: 'Use all suggested hashtags and post during peak hours (9-11 AM or 7-9 PM).',
     facebook: 'Include a clear call-to-action and encourage comments. Facebook prioritizes authentic engagement.',
-    twitter: 'Keep it short and punchy. Use relevant hashtags and engage with replies quickly.',
   });
   const [copied, setCopied] = useState(false);
   const [generationNotice, setGenerationNotice] = useState<string | null>(null);
@@ -357,7 +353,7 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
 };
 
   const handlePlatformChange = (key: keyof typeof platforms) => {
-    setPlatforms({ instagram: false, facebook: false, twitter: false, [key]: true });
+    setPlatforms({ instagram: false, facebook: false, [key]: true });
   };
 
   const handleCopy = () => {
@@ -368,13 +364,46 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
     toast.success('Copied to clipboard!');
   };
 
+  const handleSaveTemplate = async () => {
+    if (!content.instagram) {
+      toast.error('No content to save as template');
+      return;
+    }
+
+    setSavingTemplate(true);
+    try {
+      const activePlatforms = Object.entries(platforms)
+        .filter(([_, enabled]) => enabled)
+        .map(([name]) => name);
+
+      const templateName = generateTemplateName(content.instagram, holiday?.name);
+
+      const result = await createTemplate({
+        name: templateName,
+        content: content.instagram,
+        hashtags: content.hashtags,
+        category: 'holiday',
+        holiday_name: holiday?.name,
+        business_type: profile?.type,
+        tone: profile?.tone,
+        platforms: activePlatforms,
+      });
+
+      if (result) {
+        toast.success('Template saved to Content Library!');
+      } else {
+        toast.error('Failed to save template');
+      }
+    } catch (error) {
+      console.error('Error saving template:', error);
+      toast.error('Failed to save template');
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
   // Platform-specific content handlers
   const getPlatformContent = () => {
-    if (platforms.twitter) {
-      // Twitter: Limit to 280 characters
-      const twitterContent = content.instagram.substring(0, 280);
-      return twitterContent.length === 280 ? twitterContent.substring(0, 277) + '...' : twitterContent;
-    }
     if (platforms.facebook) {
       // Facebook: Full content
       return content.instagram;
@@ -386,7 +415,6 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
   const getActivePlatform = () => {
     if (platforms.instagram) return 'instagram';
     if (platforms.facebook) return 'facebook';
-    if (platforms.twitter) return 'twitter';
     return 'instagram';
   };
 
@@ -489,7 +517,7 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
   return (
     <div className="min-h-screen py-6 space-y-6">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-primary via-secondary to-accent rounded-2xl p-6 md:p-8 text-white relative overflow-hidden">
+      <div className="bg-primary rounded-2xl p-6 md:p-8 text-white relative overflow-hidden">
         <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
         <div className="relative z-10 flex items-start justify-between">
           <div>
@@ -594,10 +622,20 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
 
                   <Button 
                     onClick={handleCopy}
-                    className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+                    className="w-full bg-primary hover:bg-primary-dark"
                   >
                     {copied ? <Check className="w-4 h-4 mr-2 text-green-500" /> : <Copy className="w-4 h-4 mr-2" />}
                     {copied ? "Copied!" : "Copy Caption + Hashtags"}
+                  </Button>
+
+                  <Button 
+                    onClick={handleSaveTemplate}
+                    disabled={savingTemplate || !content.instagram}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    {savingTemplate ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <BookOpen className="w-4 h-4 mr-2" />}
+                    {savingTemplate ? "Saving..." : "Save to Templates"}
                   </Button>
                 </>
               )}
@@ -614,7 +652,6 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
               {[
                 { key: 'instagram', label: 'Instagram', icon: InstagramIcon },
                 { key: 'facebook', label: 'Facebook', icon: FacebookIcon },
-                { key: 'twitter', label: 'Twitter', icon: TwitterIcon },
               ].map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
@@ -640,7 +677,7 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
             <Button 
               onClick={handleSchedule}
               disabled={saving}
-              className="w-full h-12 bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-base font-semibold"
+              className="w-full h-12 bg-primary hover:bg-primary-dark text-base font-semibold"
             >
               {saving ? (
                 <>
@@ -683,12 +720,12 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
               </Button>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-4 min-h-96 flex flex-col">
+              <div className="bg-slate-900 p-4 min-h-96 flex flex-col">
                 {getActivePlatform() === 'instagram' && (
                   <>
                     {/* Instagram Header */}
                     <div className="flex items-center gap-3 pb-4 border-b border-white/10">
-                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-xs font-bold">
+                      <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold">
                         {profile?.name?.charAt(0) || 'B'}
                       </div>
                       <div className="flex-1">
@@ -736,7 +773,7 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
                   <>
                     {/* Facebook Header */}
                     <div className="flex items-center gap-3 pb-3 border-b border-white/10">
-                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center text-white text-xs font-bold">
+                      <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
                         {profile?.name?.charAt(0) || 'B'}
                       </div>
                       <div className="flex-1">
@@ -783,52 +820,6 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
                   </>
                 )}
 
-                {getActivePlatform() === 'twitter' && (
-                  <>
-                    {/* Twitter Header */}
-                    <div className="flex gap-3 pb-3">
-                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                        {profile?.name?.charAt(0) || 'B'}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="text-white font-bold text-sm">{profile?.name || 'Business'}</p>
-                          <p className="text-white/60 text-xs">@{profile?.name?.toLowerCase().replace(/\s+/g, '') || 'business'}</p>
-                        </div>
-                        <p className="text-white/60 text-xs">now</p>
-                      </div>
-                    </div>
-
-                    {/* Twitter Content (280 char limit) */}
-                    <div className="py-3 border-b border-white/10">
-                      <p className="text-white text-sm leading-relaxed">
-                        {getPlatformContent()}
-                      </p>
-                      {content.instagram.length > 280 && (
-                        <p className="text-xs text-orange-400 mt-2">⚠️ Text exceeds 280 chars</p>
-                      )}
-                    </div>
-
-                    {/* Twitter Hashtags (compact) */}
-                    <div className="py-2">
-                      <div className="flex flex-wrap gap-1">
-                        {content.hashtags.map((tag) => (
-                          <span key={tag} className="text-blue-400 text-xs">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Twitter Engagement */}
-                    <div className="mt-3 flex gap-6 text-white/60 text-xs pt-3 border-t border-white/10 justify-around">
-                      <span className="cursor-pointer hover:text-blue-400">💬</span>
-                      <span className="cursor-pointer hover:text-green-400">♻️</span>
-                      <span className="cursor-pointer hover:text-red-400">♥️</span>
-                      <span className="cursor-pointer hover:text-blue-400">📤</span>
-                    </div>
-                  </>
-                )}
               </div>
             </CardContent>
           </Card>
@@ -877,7 +868,7 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-background rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-white/20">
             {/* Modal Header */}
-            <div className="sticky top-0 bg-gradient-to-r from-primary/20 via-secondary/20 to-accent/20 backdrop-blur-md border-b border-white/10 p-6 flex items-center justify-between">
+            <div className="sticky top-0 bg-muted/50 backdrop-blur-md border-b border-border p-6 flex items-center justify-between">
               <h2 className="text-2xl font-bold text-foreground">Post Preview - Full View</h2>
               <button
                 onClick={() => setFullscreenPreview(false)}
@@ -890,12 +881,12 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
             {/* Modal Content */}
             <div className="p-8">
               {/* Social Media Post */}
-              <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl overflow-hidden shadow-2xl max-w-md mx-auto">
+              <div className="bg-slate-900 rounded-xl overflow-hidden shadow-2xl max-w-md mx-auto">
                 {getActivePlatform() === 'instagram' && (
                   <>
                     {/* Instagram Header */}
                     <div className="flex items-center gap-3 p-4 border-b border-white/10">
-                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-sm font-bold">
+                      <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold">
                         {profile?.name?.charAt(0) || 'B'}
                       </div>
                       <div className="flex-1">
@@ -946,7 +937,7 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
                   <>
                     {/* Facebook Header */}
                     <div className="flex items-center gap-3 p-4 border-b border-blue-900/50">
-                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center text-white text-sm font-bold">
+                      <div className="h-12 w-12 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-bold">
                         {profile?.name?.charAt(0) || 'B'}
                       </div>
                       <div className="flex-1">
@@ -992,50 +983,6 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
                   </>
                 )}
 
-                {getActivePlatform() === 'twitter' && (
-                  <>
-                    {/* Twitter Header */}
-                    <div className="flex gap-3 p-4 border-b border-white/10">
-                      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                        {profile?.name?.charAt(0) || 'B'}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="text-white font-bold">{profile?.name || 'Business'}</p>
-                          <p className="text-white/60 text-sm">@{profile?.name?.toLowerCase().replace(/\s+/g, '') || 'business'}</p>
-                          <p className="text-white/40 text-sm">·</p>
-                          <p className="text-white/60 text-sm">2h</p>
-                        </div>
-                      </div>
-                      <span className="text-white/40 text-sm">•••</span>
-                    </div>
-
-                    {/* Twitter Content */}
-                    <div className="p-4 border-b border-white/10">
-                      <p className="text-white text-sm leading-relaxed mb-3">
-                        {getPlatformContent()}
-                      </p>
-                      {content.instagram.length > 280 && (
-                        <p className="text-xs text-orange-400 mb-2">⚠️ Original text exceeds 280 character limit</p>
-                      )}
-                      <div className="flex flex-wrap gap-1">
-                        {content.hashtags.map((tag) => (
-                          <span key={tag} className="text-blue-400 text-sm">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Twitter Engagement */}
-                    <div className="p-4 flex gap-8 text-white/40 text-sm justify-around">
-                      <button className="hover:text-blue-400 transition-colors">💬</button>
-                      <button className="hover:text-green-400 transition-colors">♻️</button>
-                      <button className="hover:text-red-400 transition-colors">♥️</button>
-                      <button className="hover:text-blue-400 transition-colors">📤</button>
-                    </div>
-                  </>
-                )}
               </div>
 
               {/* Info Section */}
@@ -1093,7 +1040,7 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
               <div className="mt-8 flex gap-3">
                 <Button
                   onClick={() => setFullscreenPreview(false)}
-                  className="flex-1 bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+                  className="flex-1 bg-primary hover:bg-primary-dark"
                 >
                   Close Preview
                 </Button>
