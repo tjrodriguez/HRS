@@ -399,7 +399,7 @@ The following recommendations are organized by category and prioritized by a com
 
 | # | Feature | Priority | Description | Rationale |
 |---|---------|----------|-------------|-----------|
-| 1.1 | **True Post Scheduling** | P0 | Replace the placeholder schedule button with actual cron-based publishing. Store scheduled posts and execute them via a background job (Vercel Cron, Inngest, or similar). | The current "Schedule" button only shows a toast. Real scheduling is core to the product promise. |
+| 1.1 | **True Post Scheduling** | P0 | Background cron job for scheduled publishing. Campaigns can be scheduled and will auto-post at the specified time. Requires background job runner (Vercel Cron, Inngest, or similar). | Posting infrastructure is ready. Background job runner needed for automatic execution. |
 | 1.2 | **Email Campaign Manager** | P1 | Build a dedicated email composer with template selection, preview, and scheduling. Extend the existing email copy generation from the AI API. | Email is already generated but not actionable. A campaign manager would unlock a major marketing channel. |
 | 1.3 | **Content Library / Templates** | P1 | Allow users to save, favorite, and reuse past captions and emails. Add a "Templates" page with search and categorization. | Users currently lose generated content after navigating away. A library increases retention and reduces AI costs. |
 | 1.4 | **Team Collaboration** | P2 | Multi-user support with role-based access (Owner, Editor, Viewer). Share campaigns and analytics across team members. | Natural evolution for small businesses that grow into teams. |
@@ -413,8 +413,8 @@ The following recommendations are organized by category and prioritized by a com
 
 | # | Feature | Priority | Description | Rationale |
 |---|---------|----------|-------------|-----------|
-| 2.1 | **Instagram Basic Display API** | P1 | OAuth connection to Instagram for direct post publishing (single image + caption). | The #1 requested platform. Direct posting eliminates copy-paste friction. |
-| 2.2 | **Facebook Graph API** | P1 | Cross-post to Facebook Pages via the Graph API. Reuse Instagram content or create platform-specific variants. | High overlap with Instagram audience; Meta APIs are closely related. |
+| 2.1 | **Instagram Posting (Simulation)** | ✅ | Simulated Instagram posting for demo purposes. Shows full workflow without real API calls. Ready for real integration by replacing API routes. | The #1 requested platform. Simulation demonstrates the full UX without API complexity. |
+| 2.2 | **Facebook Posting (Simulation)** | ✅ | Simulated Facebook posting for demo purposes. Shows full workflow without real API calls. Ready for real integration by replacing API routes. | High overlap with Instagram audience; simulation enables immediate UX testing. |
 | 2.3 | **Google Calendar Sync** | P2 | Export holiday reminders and campaign schedules to Google Calendar. Two-way sync optional. | Helps users integrate marketing into their existing workflow. |
 | 2.4 | **Twitter/X API** | P3 | Post to Twitter/X with thread support for longer campaigns. | Lower priority due to API costs and changing platform stability. |
 | 2.5 | **LinkedIn API** | P3 | Professional audience targeting for B2B businesses. | Valuable for specific business types (consulting, SaaS, professional services). |

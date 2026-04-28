@@ -1,7 +1,7 @@
 "use client";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Calendar, BarChart3, Sparkles, User, LayoutDashboard, LogOut, BookOpen } from 'lucide-react';
+import { Calendar, Sparkles, User, LayoutDashboard, LogOut, BookOpen, History } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 
@@ -19,7 +19,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/holidays', label: 'Calendar', icon: Calendar },
     { path: '/templates', label: 'Content Library', icon: BookOpen },
-    { path: '/analytics', label: 'Analytics', icon: BarChart3 },
+    { path: '/history', label: 'History', icon: History },
     { path: '/profile', label: 'Profile', icon: User },
   ];
 

@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useBusiness, Holiday, Profile } from '@/context/BusinessContext';
-import { Sparkles, Copy, AlertCircle, Loader2, CalendarDays, Check, TrendingUp, Maximize2, X, BookOpen } from 'lucide-react';
+import { Sparkles, Copy, AlertCircle, Loader2, CalendarDays, Check, TrendingUp, Maximize2, X, BookOpen, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,8 @@ import { toast } from 'sonner';
 import { parseISO, format } from 'date-fns';
 import { createCampaign, scheduleCampaign, updateCampaign, Campaign } from '@/lib/campaigns';
 import { createTemplate, generateTemplateName } from '@/lib/templates';
+import { fetchSocialAccounts, postToSocial, SocialAccount, getConnectedPlatforms } from '@/lib/social';
+import { logCaptionGenerated, logPostSimulated, logCampaignScheduled, logTemplateSaved } from '@/lib/activity';
 
 // Social media SVG components
 const InstagramIcon = ({ className }: { className?: string }) => (
@@ -32,7 +34,13 @@ export default function CreatePage() {
   const [editingCaption, setEditingCaption] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
+  const [posting, setPosting] = useState(false);
   const [campaignId, setCampaignId] = useState<string | null>(null);
+  const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
+  const [connectedPlatforms, setConnectedPlatforms] = useState({
+    instagram: false,
+    facebook: false,
+  });
   const [platforms, setPlatforms] = useState({
     instagram: true,
     facebook: false,
@@ -139,6 +147,21 @@ export default function CreatePage() {
   };
 
   const holiday = holidays.find(h => String(h.id) === holidayId);
+
+  // Load connected social accounts
+  useEffect(() => {
+    const loadSocialAccounts = async () => {
+      try {
+        const accounts = await fetchSocialAccounts();
+        setSocialAccounts(accounts);
+        setConnectedPlatforms(getConnectedPlatforms(accounts));
+      } catch (error) {
+        console.error('Error loading social accounts:', error);
+      }
+    };
+
+    loadSocialAccounts();
+  }, []);
 
   // Helper functions for fallback content generation
   const generateFallbackCaption = (holiday: Holiday, profile: Profile) => {
@@ -255,6 +278,20 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
         
         setGenerated(true);
         
+        // Log caption generation
+        try {
+          await logCaptionGenerated(
+            data.instagram || generateFallbackCaption(holiday, profile),
+            defaultHashtags,
+            holidayId,
+            holiday.name,
+            undefined,
+            false
+          );
+        } catch (logError) {
+          console.error('Failed to log caption generation:', logError);
+        }
+        
         // Auto-save campaign draft
         try {
           // First check if campaign already exists for this holiday
@@ -341,6 +378,20 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
       setContent((prev) => ({ ...prev, instagram: nextCaptions[0] }));
       setCaptionHistory(prev => [...prev, nextCaptions[0]].slice(-10));
       toast.success('New caption generated!');
+      
+      // Log caption regeneration
+      try {
+        await logCaptionGenerated(
+          nextCaptions[0],
+          content.hashtags,
+          holidayId,
+          holiday?.name || '',
+          campaignId || undefined,
+          true
+        );
+      } catch (logError) {
+        console.error('Failed to log caption regeneration:', logError);
+      }
     }
   } catch (error) {
     console.error('Failed to regenerate caption:', error);
@@ -391,6 +442,17 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
 
       if (result) {
         toast.success('Template saved to Content Library!');
+        
+        // Log template save
+        try {
+          await logTemplateSaved(
+            templateName,
+            holiday?.name || '',
+            activePlatforms
+          );
+        } catch (logError) {
+          console.error('Failed to log template save:', logError);
+        }
       } else {
         toast.error('Failed to save template');
       }
@@ -486,6 +548,23 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
 
       toast.success('Campaign scheduled successfully!');
       
+      // Log campaign scheduling
+      try {
+        const selectedPlatforms = Object.entries(platforms)
+          .filter(([_, enabled]) => enabled)
+          .map(([name]) => name as 'instagram' | 'facebook');
+        
+        await logCampaignScheduled(
+          holidayId,
+          holiday?.name || '',
+          cId,
+          selectedPlatforms,
+          format(parseISO(holiday.date), 'yyyy-MM-dd')
+        );
+      } catch (logError) {
+        console.error('Failed to log campaign scheduling:', logError);
+      }
+      
       // Redirect to dashboard after a short delay
       setTimeout(() => {
         router.push('/');
@@ -495,6 +574,115 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
       toast.error('Failed to schedule campaign');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePostNow = async () => {
+    if (!holiday || !profile) return;
+
+    const selectedPlatforms = Object.entries(platforms)
+      .filter(([_, enabled]) => enabled)
+      .map(([name]) => name as 'instagram' | 'facebook');
+
+    if (selectedPlatforms.length === 0) {
+      toast.error('Please select at least one platform');
+      return;
+    }
+
+    // Check if accounts are connected for selected platforms
+    const availablePlatforms = selectedPlatforms.filter(p => connectedPlatforms[p]);
+
+    if (availablePlatforms.length === 0) {
+      toast.error('No connected accounts found. Please connect your social media accounts in Business Profile.');
+      router.push('/business');
+      return;
+    }
+
+    if (availablePlatforms.length < selectedPlatforms.length) {
+      const missing = selectedPlatforms.filter(p => !connectedPlatforms[p]);
+      toast.warning(`${missing.join(', ')} not connected. Posting to connected platforms only.`);
+    }
+
+    setPosting(true);
+    try {
+      // First, ensure campaign exists
+      let cId = campaignId;
+      
+      if (!cId) {
+        try {
+          const campaigns = await fetch('/api/campaigns').then(r => r.json()).then(data => data.campaigns);
+          const existing = campaigns.find((c: Campaign) => c.holiday_id === holidayId);
+          if (existing) {
+            cId = existing.id;
+            setCampaignId(existing.id);
+          }
+        } catch {
+          // Continue if fetch fails
+        }
+      }
+      
+      if (!cId) {
+        const campaign = await createCampaign(
+          holidayId,
+          content,
+          platforms,
+          null
+        );
+        cId = campaign.id;
+        setCampaignId(cId);
+      } else {
+        await updateCampaign(cId, { content, platforms });
+      }
+
+      // Post to social platforms
+      const result = await postToSocial(
+        cId,
+        availablePlatforms,
+        {
+          caption: content.instagram,
+          hashtags: content.hashtags,
+        }
+      );
+
+      if (result.success) {
+        const successPlatforms = result.results.filter(r => r.success).map(r => r.platform);
+        toast.success(
+          <div>
+            <strong>Simulation Complete!</strong>
+            <p className="text-sm">Simulated post to {successPlatforms.join(', ')}</p>
+            <p className="text-xs text-gray-500 mt-1">Demo mode - no actual posting occurred</p>
+          </div>
+        );
+        
+        // Log simulated post
+        try {
+          await logPostSimulated(
+            availablePlatforms,
+            content.instagram,
+            content.hashtags,
+            holidayId,
+            holiday?.name || '',
+            cId,
+            result.results,
+            result.platform_post_ids
+          );
+        } catch (logError) {
+          console.error('Failed to log post simulation:', logError);
+        }
+        
+        // Redirect to dashboard
+        setTimeout(() => {
+          router.push('/');
+        }, 1500);
+      } else {
+        const errors = result.results.filter(r => !r.success).map(r => `${r.platform}: ${r.error}`).join(', ');
+        toast.error(`Failed to post: ${errors}`);
+      }
+    } catch (error) {
+      console.error('Error posting to social:', error);
+      toast.error('Failed to post to social media');
+    } finally {
+      setPosting(false);
     }
   };
 
@@ -674,6 +862,29 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
 
           {/* Action Buttons */}
           <div className="space-y-3">
+            {/* Simulate Post Button - Show if at least one platform is connected */}
+            {(connectedPlatforms.instagram || connectedPlatforms.facebook) && (
+              <Button 
+                onClick={handlePostNow}
+                disabled={posting}
+                className="w-full h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-base font-semibold"
+              >
+                {posting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Simulating...
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="w-5 h-5 mr-2" />
+                    Simulate Post to {[
+                      connectedPlatforms.instagram && platforms.instagram && 'Instagram',
+                      connectedPlatforms.facebook && platforms.facebook && 'Facebook'
+                    ].filter(Boolean).join(' & ') || 'Connected Platforms'}
+                  </>
+                )}
+              </Button>
+            )}
             <Button 
               onClick={handleSchedule}
               disabled={saving}

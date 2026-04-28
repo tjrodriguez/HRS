@@ -4,6 +4,7 @@ import { updateProfile } from '@/utils/data';
 import { Building2, MapPin, Users, Save, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { SocialAccountsManager } from '@/components/social/social-accounts-manager';
 
 export function BusinessProfile() {
   const { profile, setProfile, refetch } = useBusiness();
@@ -182,6 +183,9 @@ export function BusinessProfile() {
           </button>
         </div>
       </form>
+
+      {/* Social Media Accounts */}
+      <SocialAccountsManager />
 
       {/* Info Card */}
       <div className="bg-primary/5 rounded-xl p-6 border border-primary/20">
