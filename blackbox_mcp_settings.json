@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "github.com/supabase-community/supabase-mcp": {
-      "command": "npx",
-      "args": ["-y", "@supabase/mcp-server-supabase@latest"]
-    }
-  }
-}
