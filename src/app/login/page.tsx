@@ -1,5 +1,7 @@
-﻿import { createClient } from '@/utils/supabase/server'
+﻿import * as React from 'react'
+import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -12,14 +14,14 @@ import {
 } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Checkbox } from '@/components/ui/checkbox'
-import { CalendarDays, Apple, ArrowRight, AlertCircle } from 'lucide-react'
+import { CalendarDays, ArrowRight, AlertCircle, Zap, Shield } from 'lucide-react'
 
 export const metadata = {
   title: 'Sign In - HolidayBoost',
   description: 'Sign in to your HolidayBoost account to manage your holiday marketing campaigns',
 }
 
-export default async function LoginPage(props: { searchParams: Promise<{ message: string }> }) {
+export default async function LoginPage(props: { searchParams: Promise<{ message: string }> }): Promise<React.ReactElement> {
   const searchParams = await props.searchParams
 
   const login = async (formData: FormData) => {
@@ -64,25 +66,31 @@ export default async function LoginPage(props: { searchParams: Promise<{ message
   }
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-background relative overflow-hidden">
-      {/* Decorative background blurs */}
-      <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary/20 rounded-full mix-blend-overlay filter blur-[120px] opacity-70 pointer-events-none"></div>
-      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-secondary/20 rounded-full mix-blend-overlay filter blur-[100px] opacity-60 pointer-events-none"></div>
-
-      {/* Left side - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 md:p-8 lg:p-12 relative z-10 order-2 lg:order-1">
-        <Card className="w-full max-w-md bg-card/60 backdrop-blur-xl border-white/20 shadow-2xl relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none"></div>
-          <CardHeader className="space-y-3 relative z-10 p-6 sm:p-8 pb-4">
-            <div className="lg:hidden flex items-center gap-3 mb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-secondary to-accent shadow-md border border-white/20">
-                <CalendarDays className="h-5 w-5 text-white drop-shadow-sm" />
+    <div className="flex min-h-screen bg-background">
+      {/* Decorative background elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-secondary/5 rounded-full blur-3xl" />
+      </div>
+      
+      {/* Left side - Form */}
+      <div className="flex-1 flex items-center justify-center p-8 relative z-10">
+        <Card className="w-full max-w-md border-border/50 shadow-xl bg-card">
+          <CardHeader className="space-y-1">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center shadow-lg">
+                <CalendarDays className="w-6 h-6 text-primary-foreground" />
               </div>
-              <h1 className="text-2xl font-extrabold text-foreground tracking-tight">HolidayBoost</h1>
+              <div>
+                <span className="text-2xl font-bold text-foreground">
+                  HolidayBoost
+                </span>
+                <p className="text-xs text-muted-foreground">AI-Powered Marketing</p>
+              </div>
             </div>
-            <CardTitle className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight">Welcome back</CardTitle>
-            <CardDescription className="text-sm sm:text-base text-muted-foreground">
-              Sign in to access your holiday marketing schedule
+            <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
+            <CardDescription className="text-muted-foreground/80">
+              Sign in to your account to manage your holiday campaigns
             </CardDescription>
           </CardHeader>
 
@@ -90,11 +98,11 @@ export default async function LoginPage(props: { searchParams: Promise<{ message
             {/* Error/Success Messages */}
             {searchParams?.message && (
               <Alert 
-                variant={searchParams.message.includes('email') || searchParams.message.includes('Check') ? 'default' : 'destructive'} 
-                className={`backdrop-blur border ${
-                  searchParams.message.includes('email') || searchParams.message.includes('Check')
-                    ? 'bg-accent/15 border-accent/30 text-accent'
-                    : 'bg-destructive/15 border-destructive/30 text-destructive'
+                variant={searchParams.message.includes('success') || searchParams.message.includes('Check') ? 'default' : 'destructive'} 
+                className={`animate-in slide-in-from-top-2 duration-300 border ${
+                  searchParams.message.includes('success') || searchParams.message.includes('Check')
+                    ? 'bg-primary/10 border-primary/30 text-primary'
+                    : 'bg-destructive/10 border-destructive/30 text-destructive'
                 }`}
               >
                 <AlertCircle className="h-4 w-4" />
@@ -102,110 +110,47 @@ export default async function LoginPage(props: { searchParams: Promise<{ message
               </Alert>
             )}
 
-            {/* Social Login Buttons */}
-            <div className="space-y-3">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Quick access</p>
-              <div className="grid grid-cols-2 gap-3">
-                <Button 
-                  type="button"
-                  variant="outline"
-                  size="lg"
-                  aria-label="Sign in with Google"
-                >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="currentColor"/>
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="currentColor"/>
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="currentColor"/>
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="currentColor"/>
-                  </svg>
-                  <span className="hidden sm:inline ml-2">Google</span>
-                </Button>
-                <Button 
-                  type="button"
-                  variant="outline"
-                  size="lg"
-                  aria-label="Sign in with Apple"
-                >
-                  <Apple className="w-5 h-5" />
-                  <span className="hidden sm:inline ml-2">Apple</span>
-                </Button>
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-white/10"></span>
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-3 text-muted-foreground font-semibold">Or email</span>
-              </div>
-            </div>
-
-            {/* Email/Password Form */}
-            <form className="flex flex-col gap-5">
-              <div className="flex flex-col gap-2.5">
-                <Label htmlFor="email" className="text-foreground font-semibold text-sm">Email Address</Label>
+            <form action={login} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-foreground/80">Email</Label>
                 <Input
                   id="email"
                   name="email"
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder="name@example.com"
                   required
-                  aria-required="true"
-                  aria-describedby="email-error"
-                  className="bg-background/60 border-white/20 focus-visible:ring-primary h-11 sm:h-12 text-base transition-all hover:bg-background/80 focus-visible:border-primary/50"
+                  className="h-12 bg-background/50 border-border/50 focus:border-primary focus:ring-primary/20 transition-all"
                 />
               </div>
-
-              <div className="flex flex-col gap-2.5">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-foreground font-semibold text-sm">Password</Label>
-                  <a 
-                    href="#forgot-password" 
-                    className="text-xs sm:text-sm font-medium text-primary hover:text-primary/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded px-1"
-                    aria-label="Forgot password"
-                  >
-                    Forgot?
-                  </a>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-foreground/80">Password</Label>
                 <Input
                   id="password"
                   name="password"
                   type="password"
                   placeholder="••••••••"
                   required
-                  aria-required="true"
-                  className="bg-background/60 border-white/20 focus-visible:ring-primary h-11 sm:h-12 text-base transition-all hover:bg-background/80 focus-visible:border-primary/50 pr-10"
+                  className="h-12 bg-background/50 border-border/50 focus:border-primary focus:ring-primary/20 transition-all"
                 />
               </div>
-
-              {/* Remember Me */}
-              <div className="flex items-center gap-3 px-1">
-                <Checkbox
-                  id="rememberMe"
-                  name="rememberMe"
-                  aria-label="Remember me"
-                />
-                <Label 
-                  htmlFor="rememberMe" 
-                  className="text-sm font-medium text-muted-foreground cursor-pointer select-none"
-                >
-                  Keep me signed in
-                </Label>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Checkbox id="remember" name="rememberMe" className="border-border/50 data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
+                  <label
+                    htmlFor="remember"
+                    className="text-sm font-medium leading-none text-foreground/70 cursor-pointer hover:text-foreground transition-colors"
+                  >
+                    Remember me
+                  </label>
+                </div>
+                <Link href="#" className="text-sm text-primary hover:text-primary/80 hover:underline transition-colors">
+                  Forgot password?
+                </Link>
               </div>
-
-              {/* Sign In Button */}
-              <Button 
-                type="submit"
-                formAction={login} 
-                className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90"
-                size="lg"
-                aria-label="Sign in to your account"
-              >
+              <Button type="submit" className="w-full h-12 bg-primary hover:bg-primary-dark transition-all duration-300 shadow-lg font-semibold text-primary-foreground">
                 Sign In
+                <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
-
             </form>
 
             {/* Sign Up */}
@@ -222,60 +167,61 @@ export default async function LoginPage(props: { searchParams: Promise<{ message
         </Card>
       </div>
 
-      {/* Right side - Sneak Peek (hidden on mobile) */}
-      <div className="hidden lg:flex lg:flex-1 relative flex-col justify-center items-center p-12 overflow-hidden order-2">
+      {/* Right side - Features (hidden on mobile) */}
+      <div className="hidden lg:flex lg:flex-1 relative flex-col justify-center items-center p-12 overflow-hidden order-2 bg-muted/30">
         <div className="w-full max-w-sm">
-          {/* Sneak Peek Card */}
-          <div className="relative overflow-hidden rounded-3xl shadow-2xl">
-            {/* Background gradient */}
-            <div className="absolute inset-0 bg-gradient-to-br from-primary via-secondary to-accent opacity-90"></div>
-            <div className="absolute inset-0 bg-gradient-to-tr from-secondary/20 to-accent/10 mix-blend-overlay"></div>
-            
+          {/* Feature Card */}
+          <div className="relative overflow-hidden rounded-3xl shadow-2xl bg-card border border-border">
             {/* Decorative elements */}
-            <div className="absolute -top-32 -right-32 w-64 h-64 bg-white/20 rounded-full mix-blend-overlay filter blur-3xl opacity-60"></div>
-            <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-accent/30 rounded-full mix-blend-overlay filter blur-3xl opacity-40"></div>
+            <div className="absolute top-20 right-20 w-72 h-72 bg-primary/10 rounded-full" />
+            <div className="absolute bottom-20 left-20 w-72 h-72 bg-secondary/10 rounded-full" />
             
-            <div className="relative p-8 backdrop-blur-md border border-white/20 rounded-3xl">
+            <div className="relative p-8">
               <div className="space-y-6 z-10">
                 {/* Header */}
                 <div>
-                  <p className="text-xs font-bold text-white/70 uppercase tracking-wider mb-2">Your Schedule</p>
-                  <h3 className="text-3xl font-extrabold text-white tracking-tight drop-shadow-lg">Next Event</h3>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Your Schedule</p>
+                  <h3 className="text-3xl font-extrabold text-foreground tracking-tight">Next Event</h3>
                 </div>
 
-                {/* Event Preview (Blurred) */}
-                <div className="space-y-4 backdrop-blur-sm bg-white/5 rounded-2xl p-6 border border-white/20">
-                  <div className="h-6 bg-white/20 rounded-full w-3/4 blur-sm"></div>
-                  <div className="h-4 bg-white/15 rounded-full w-full blur-sm"></div>
-                  <div className="h-4 bg-white/15 rounded-full w-2/3 blur-sm"></div>
+                {/* Event Preview (Placeholder) */}
+                <div className="space-y-4 bg-muted rounded-2xl p-6 border border-border">
+                  <div className="h-6 bg-muted-foreground/20 rounded-full w-3/4"></div>
+                  <div className="h-4 bg-muted-foreground/15 rounded-full w-full"></div>
+                  <div className="h-4 bg-muted-foreground/15 rounded-full w-2/3"></div>
                 </div>
 
                 {/* CTA */}
-                <div className="pt-4 border-t border-white/20 space-y-3">
-                  <p className="text-white/90 font-medium">Sign in to see your personalized holiday calendar and AI-generated content ideas.</p>
-                  <div className="flex items-center gap-2 text-white font-semibold text-sm">
+                <div className="pt-4 border-t border-border space-y-3">
+                  <p className="text-foreground/90 font-medium">Sign in to see your personalized holiday calendar and AI-generated content ideas.</p>
+                  <div className="flex items-center gap-2 text-primary font-semibold text-sm">
                     <span>Unlock your schedule</span>
                     <ArrowRight className="w-4 h-4" />
                   </div>
                 </div>
 
                 {/* Features */}
-                <div className="grid grid-cols-2 gap-3 pt-4 border-t border-white/20">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-white/80"></div>
-                    <span className="text-xs font-medium text-white/90">7-day reminders</span>
+                <div className="flex items-start gap-3 p-4 rounded-xl bg-muted border border-border">
+                  <div className="w-10 h-10 rounded-lg bg-background flex items-center justify-center flex-shrink-0">
+                    <Zap className="w-5 h-5 text-primary" />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-white/80"></div>
-                    <span className="text-xs font-medium text-white/90">AI-generated captions</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-white/80"></div>
-                    <span className="text-xs font-medium text-white/90">Performance tracking</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-white/80"></div>
-                    <span className="text-xs font-medium text-white/90">Multi-channel content</span>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-primary"></div>
+                      <span className="text-xs font-medium text-foreground">7-day reminders</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-secondary"></div>
+                      <span className="text-xs font-medium text-foreground">AI-generated captions</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-accent"></div>
+                      <span className="text-xs font-medium text-foreground">Performance tracking</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-primary"></div>
+                      <span className="text-xs font-medium text-foreground">Multi-channel content</span>
+                    </div>
                   </div>
                 </div>
               </div>

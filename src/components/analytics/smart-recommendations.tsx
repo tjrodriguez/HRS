@@ -1,10 +1,11 @@
 "use client";
 
+import * as React from 'react';
 import { useBusiness } from "@/context/BusinessContext";
 import { Sparkles, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
-export function SmartRecommendations() {
+export function SmartRecommendations(): React.ReactElement {
   const { campaigns } = useBusiness();
   const drafts = campaigns.filter((c) => c.status === "draft").length;
   return (

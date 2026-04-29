@@ -1,4 +1,5 @@
 "use client";
+import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useBusiness, Holiday, Profile } from '@/context/BusinessContext';
@@ -22,12 +23,12 @@ const FacebookIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 2h-3a6 6 0 0 0-6 6v3H7v4h2v8h4v-8h3l1-4h-4V8a2 2 0 0 1 2-2h3z"/></svg>
 );
 
-export default function CreatePage() {
+export default function CreatePage(): React.ReactElement {
   const params = useParams();
   const router = useRouter();
   const holidayId = params.id as string;
   const { holidays, profile } = useBusiness();
-
+  
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
   const [fullscreenPreview, setFullscreenPreview] = useState(false);
@@ -86,6 +87,7 @@ export default function CreatePage() {
 
     return [];
   };
+
 
 
   const requestSingleCaption = async (priorCaptions: string[] = []) => {

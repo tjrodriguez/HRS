@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { useState, useMemo } from "react";
 import { Search, Filter, Star, BookOpen, X } from "lucide-react";
 import { Template } from "@/utils/data";
@@ -12,7 +13,7 @@ interface TemplateLibraryProps {
   onUseTemplate?: (content: string) => void;
 }
 
-export function TemplateLibrary({ templates, onRefresh, onUseTemplate }: TemplateLibraryProps) {
+export function TemplateLibrary({ templates, onRefresh, onUseTemplate }: TemplateLibraryProps): React.ReactElement {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);

@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from 'react'
 import { useState } from "react";
 import { HolidayPerformanceScorecard } from "./holiday-performance-scorecard";
 import { SmartRecommendations } from "./smart-recommendations";
@@ -14,7 +15,7 @@ interface Tab {
   component: React.ReactNode;
 }
 
-export function InsightsHub() {
+export function InsightsHub(): React.ReactElement {
   const [activeTab, setActiveTab] = useState<TabId>("performance");
 
   const tabs: Tab[] = [

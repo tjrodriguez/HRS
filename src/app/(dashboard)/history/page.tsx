@@ -1,5 +1,6 @@
-'use client';
+ 'use client';
 
+import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
@@ -51,7 +52,7 @@ const PLATFORMS = [
   { value: 'both', label: 'Both' },
 ];
 
-export default function HistoryPage() {
+export default function HistoryPage(): React.ReactElement {
   const router = useRouter();
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [stats, setStats] = useState<ActivityStats | null>(null);

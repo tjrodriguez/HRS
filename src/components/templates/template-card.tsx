@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { useState } from "react";
 import { Heart, Copy, Trash2, Sparkles, Tag, Hash } from "lucide-react";
 import { toast } from "sonner";
@@ -12,7 +13,7 @@ interface TemplateCardProps {
   onUse?: (content: string) => void;
 }
 
-export function TemplateCard({ template, onUpdate, onUse }: TemplateCardProps) {
+export function TemplateCard({ template, onUpdate, onUse }: TemplateCardProps): React.ReactElement {
   const [isFavorite, setIsFavorite] = useState(template.is_favorite);
   const [isDeleting, setIsDeleting] = useState(false);
   const [copied, setCopied] = useState(false);

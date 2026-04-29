@@ -1,11 +1,12 @@
 "use client";
+import * as React from 'react'
 import Link from 'next/link';
-import { useBusiness } from '@/context/BusinessContext';
+import { useBusiness, Holiday } from '@/context/BusinessContext';
 import { Calendar, Bell, TrendingUp, Sparkles, Clock, ArrowRight, Gift, Zap, Target, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, parseISO, differenceInDays, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday } from 'date-fns';
 import { useState, useMemo } from 'react';
 
-export function Dashboard() {
+export function Dashboard(): React.ReactElement {
   const { profile, holidays, engagementData } = useBusiness();
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
@@ -43,16 +44,14 @@ export function Dashboard() {
 
   // Map holidays to dates for quick lookup
   const holidaysByDate = useMemo(() => {
-    const map = new Map<string, typeof holidays>();
-    holidays.forEach(holiday => {
-      const dateStr = format(parseISO(holiday.date), 'yyyy-MM-dd');
-      if (!map.has(dateStr)) {
-        map.set(dateStr, []);
-      }
-      map.get(dateStr)!.push(holiday);
-    });
-    return map;
-  }, [holidays]);
+    const map = new Map<string, Holiday[]>();
+    holidays.forEach((holiday) => {
+      const dateStr = format(parseISO(holiday.date), 'yyyy-MM-dd')
+      if (!map.has(dateStr)) map.set(dateStr, [])
+      map.get(dateStr)!.push(holiday)
+    })
+    return map
+  }, [holidays])
 
   const getHolidaysForDay = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
@@ -217,7 +216,8 @@ export function Dashboard() {
           {/* Days Grid */}
           <div className="grid grid-cols-7 gap-2 md:gap-3">
             {daysInMonth.map(day => {
-              const hasHoliday = isHolidayDay(day);
+              const dayHolidays = getHolidaysForDay(day);
+              const hasHoliday = dayHolidays.length > 0;
               const hasReminder = needsReminderDay(day);
               const isCurrentDay = isToday(day);
               const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
@@ -253,13 +253,18 @@ export function Dashboard() {
                       {format(day, 'd')}
                     </span>
                     
-                    {/* Event indicators */}
+                    {/* Event indicators and holiday names */}
                     {hasReminder && !hasHoliday && (
                       <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-secondary rounded-full shadow-md"></div>
                     )}
+
                     {hasHoliday && (
-                      <div className="flex gap-0.5 justify-center flex-wrap px-1">
-                        <div className="w-2 h-2 md:w-2.5 md:h-2.5 bg-primary rounded-full shadow-lg"></div>
+                      <div className="w-full mt-1 px-1 flex flex-col items-center gap-0.5">
+                        {dayHolidays.slice(0, 2).map(h => (
+                          <span key={h.id} className="text-[10px] md:text-xs font-semibold text-primary truncate max-w-full text-center">
+                            {h.name}
+                          </span>
+                        ))}
                       </div>
                     )}
                   </div>

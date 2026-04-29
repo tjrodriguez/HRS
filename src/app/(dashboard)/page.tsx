@@ -1,3 +1,4 @@
+import * as React from 'react'
 import { Dashboard } from '@/components/dashboard/dashboard'
 
 export const metadata = {
@@ -9,6 +10,6 @@ export const metadata = {
  * Dashboard page - main entry point for authenticated users
  * Displays upcoming holidays and campaign overview
  */
-export default function DashboardPage() {
+export default function DashboardPage(): React.ReactElement {
   return <Dashboard />
 }

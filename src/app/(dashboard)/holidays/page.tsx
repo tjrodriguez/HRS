@@ -1,3 +1,4 @@
+import * as React from 'react'
 import { HolidayCalendar } from '@/components/holidays/holiday-calendar'
 
 export const metadata = {
@@ -9,6 +10,6 @@ export const metadata = {
  * Holiday Calendar page - displays all upcoming holidays
  * Allows users to search, filter, and create campaigns for specific holidays
  */
-export default function HolidaysPage() {
+export default function HolidaysPage(): React.ReactElement {
   return <HolidayCalendar />
 }

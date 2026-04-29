@@ -1,10 +1,11 @@
 "use client";
 
+import * as React from 'react'
 import { useBusiness } from "@/context/BusinessContext";
 import { computeHolidayPerformance } from "@/lib/analytics";
 import { Trophy, TrendingUp, Calendar, Heart, MessageCircle, Share2, Eye } from "lucide-react";
 
-export function HolidayPerformanceScorecard() {
+export function HolidayPerformanceScorecard(): React.ReactElement {
   const { campaignAnalytics } = useBusiness();
   const performanceData = computeHolidayPerformance(campaignAnalytics);
 

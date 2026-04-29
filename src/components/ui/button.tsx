@@ -1,3 +1,4 @@
+import React from "react"
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 
@@ -40,19 +41,23 @@ const buttonVariants = cva(
   }
 )
 
-function Button({
-  className,
-  variant = "default",
-  size = "default",
-  ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
-  return (
-    <ButtonPrimitive
-      data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
-      {...props}
-    />
-  )
+type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & VariantProps<typeof buttonVariants> & { asChild?: boolean }
+
+/**
+ * Button with design-system variants. Supports `asChild` to pass styles to a child element.
+ */
+function Button({ className, variant = "default", size = "default", asChild = false, ...props }: ButtonProps): React.ReactElement {
+  const Comp = asChild ? "span" : ButtonPrimitive
+
+  const buttonClassName = cn(buttonVariants({ variant, size }), className)
+
+  if (asChild && React.isValidElement(props.children)) {
+    const child = props.children as React.ReactElement<any, any>
+    const childClassName = (child.props as { className?: string }).className
+    return React.cloneElement(child, { className: cn(childClassName, buttonClassName) })
+  }
+
+  return <Comp data-slot="button" className={buttonClassName} {...props} />
 }
 
 export { Button, buttonVariants }

@@ -1,12 +1,12 @@
 "use client";
+import * as React from 'react'
 import { useBusiness, type Profile } from '@/context/BusinessContext';
 import { updateProfile } from '@/utils/data';
 import { Building2, MapPin, Users, Save, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { SocialAccountsManager } from '@/components/social/social-accounts-manager';
 
-export function BusinessProfile() {
+export function BusinessProfile(): React.ReactElement {
   const { profile, setProfile, refetch } = useBusiness();
   const [formData, setFormData] = useState<Profile>(profile || {
     name: '',
@@ -184,8 +184,8 @@ export function BusinessProfile() {
         </div>
       </form>
 
-      {/* Social Media Accounts */}
-      <SocialAccountsManager />
+      {/* Notification Settings removed */}
+
 
       {/* Info Card */}
       <div className="bg-primary/5 rounded-xl p-6 border border-primary/20">

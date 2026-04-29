@@ -14,7 +14,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 import { createClient } from "@/utils/supabase/server"
 import { redirect } from "next/navigation"
 
-export async function Header() {
+export async function Header(): Promise<React.ReactElement> {
   const supabase = await createClient()
 
   // Get current user server-side for display

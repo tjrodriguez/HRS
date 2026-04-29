@@ -1,9 +1,10 @@
 "use client";
 
+import * as React from 'react';
 import { useBusiness } from "@/context/BusinessContext";
 import { GitBranch, CheckCircle2, Clock } from "lucide-react";
 
-export function CampaignTimeline() {
+export function CampaignTimeline(): React.ReactElement {
   const { campaigns } = useBusiness();
   if (campaigns.length === 0) {
     return (

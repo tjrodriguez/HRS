@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -19,7 +20,11 @@ export type Holiday = {
   description: string
 }
 
-export function HolidayList({ initialHolidays }: { initialHolidays: Holiday[] }) {
+function formatDisplayDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+export function HolidayList({ initialHolidays }: { initialHolidays: Holiday[] }): React.ReactElement {
   const [search, setSearch] = useState("")
   const [category, setCategory] = useState<string>("all")
 

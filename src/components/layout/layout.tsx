@@ -1,11 +1,12 @@
 "use client";
+import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Calendar, Sparkles, User, LayoutDashboard, LogOut, BookOpen, History } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 
-export function Layout({ children }: { children: React.ReactNode }) {
+export function Layout({ children }: { children: React.ReactNode }): React.ReactElement {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -88,6 +89,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 })}
               </div>
               
+              {/* Notification Bell removed */}
+
               {/* Logout button - Enhanced with better hover state */}
               <button
                 onClick={handleLogout}

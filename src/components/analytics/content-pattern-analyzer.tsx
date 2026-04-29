@@ -1,10 +1,11 @@
 "use client";
 
+import * as React from 'react';
 import { useBusiness } from "@/context/BusinessContext";
 import { extractContentInsights, computePlatformPerformance } from "@/lib/analytics";
 import { Lightbulb, BarChart3, Hash, Type } from "lucide-react";
 
-export function ContentPatternAnalyzer() {
+export function ContentPatternAnalyzer(): React.ReactElement {
   const { campaignAnalytics } = useBusiness();
   const insights = extractContentInsights(campaignAnalytics);
   const platformData = computePlatformPerformance(campaignAnalytics);

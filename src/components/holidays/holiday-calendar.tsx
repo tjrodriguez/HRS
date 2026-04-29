@@ -1,4 +1,6 @@
 "use client";
+
+import * as React from 'react'
 import Link from 'next/link';
 import { useBusiness, Holiday } from '@/context/BusinessContext';
 import { Calendar, Filter, Search, Sparkles } from 'lucide-react';
@@ -6,7 +8,7 @@ import { Calendar, Filter, Search, Sparkles } from 'lucide-react';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { useState } from 'react';
 
-export function HolidayCalendar() {
+export function HolidayCalendar(): React.ReactElement {
   const { holidays } = useBusiness();
   const [selectedType, setSelectedType] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('upcoming');
@@ -35,12 +37,10 @@ export function HolidayCalendar() {
   const groupedHolidays = filteredHolidays.reduce((acc: Record<string, Holiday[]>, holiday: Holiday) => {
     const date = parseISO(holiday.date);
     const key = format(date, 'yyyy-MM');
-    if (!acc[key]) {
-      acc[key] = [];
-    }
-    acc[key].push(holiday);
-    return acc;
-  }, {} as Record<string, typeof holidays>);
+    if (!acc[key]) acc[key] = []
+    acc[key].push(holiday)
+    return acc
+  }, {} as Record<string, Holiday[]>);
 
   return (
     <div className="space-y-8">

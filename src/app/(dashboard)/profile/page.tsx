@@ -1,4 +1,5 @@
-import { BusinessProfile } from '@/components/profile/business-profile'
+import * as React from 'react'
+import { BusinessProfile } from '@/components/profile'
 
 export const metadata = {
   title: 'Business Profile - HolidayBoost',
@@ -9,6 +10,6 @@ export const metadata = {
  * Profile page - displays and manages business profile
  * User can update business name, niche, tone, social platforms, and preferences
  */
-export default function ProfilePage() {
+export default function ProfilePage(): React.ReactElement {
   return <BusinessProfile />
 }

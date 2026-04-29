@@ -1,5 +1,6 @@
-'use client';
+ 'use client';
 
+import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { Check, X, Loader2, ExternalLink, Users } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,7 +30,7 @@ import {
   SocialAccount,
 } from '@/lib/social';
 
-export function SocialAccountsManager() {
+export function SocialAccountsManager(): React.ReactElement {
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState<'instagram' | 'facebook' | null>(null);

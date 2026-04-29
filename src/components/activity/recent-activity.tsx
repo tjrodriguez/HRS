@@ -1,5 +1,6 @@
-'use client';
+ 'use client';
 
+import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { History, ArrowRight, Loader2, Calendar, Type, Hash } from 'lucide-react';
@@ -16,7 +17,7 @@ import {
   getPlatformDisplay 
 } from '@/lib/activity';
 
-export function RecentActivity() {
+export function RecentActivity(): React.ReactElement {
   const router = useRouter();
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
