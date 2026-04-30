@@ -7,14 +7,14 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Eye, EyeOff, User, Mail, Lock, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 
 interface CreateAccountFormProps {
-  onSignup: (email: string, password: string, name: string) => Promise<{ error?: string; success?: boolean }>
+  onSignup: (email: string, password: string) => Promise<{ error?: string; success?: boolean }>
 }
 
 export default function CreateAccountForm({ onSignup }: CreateAccountFormProps): React.ReactElement {
@@ -27,8 +27,6 @@ export default function CreateAccountForm({ onSignup }: CreateAccountFormProps):
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [agreedToTerms, setAgreedToTerms] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -71,7 +69,7 @@ export default function CreateAccountForm({ onSignup }: CreateAccountFormProps):
     }
     // Validate password match
     if (formData.password !== formData.confirmPassword) {
-      setErrors({ confirmPassword: 'Passwords do not match' })
+      setError('Passwords do not match')
       setAlert({ type: 'error', message: 'Passwords do not match. Please check and try again.' })
       setLoading(false)
       return false
@@ -93,7 +91,7 @@ export default function CreateAccountForm({ onSignup }: CreateAccountFormProps):
 
     try {
       // Call server action
-      const result = await onSignup(formData.email, formData.password, formData.name)
+      const result = await onSignup(formData.email, formData.password)
 
       if (result.error) {
         setAlert({ type: 'error', message: result.error })

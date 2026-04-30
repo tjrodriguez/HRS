@@ -2,7 +2,6 @@
 
 import * as React from 'react'
 import { useBusiness } from "@/context/BusinessContext";
-import { Radar, Clock } from "lucide-react";
 import Link from "next/link";
 
 export function OpportunityRadar(): React.ReactElement {

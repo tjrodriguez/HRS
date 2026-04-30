@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
  * GET /api/analytics
  * Get analytics summary for user
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const supabase = await createClient();
 

@@ -1,6 +1,5 @@
 import * as React from 'react'
 import { createClient } from '@/utils/supabase/server'
-import { redirect } from 'next/navigation'
 import CreateAccountForm from '@/components/auth/create-account-form'
 import { CalendarDays, Sparkles, Zap, Shield, TrendingUp } from 'lucide-react'
 
@@ -9,10 +8,8 @@ export const metadata = {
   description: 'Sign up for HolidayBoost to start automating your holiday marketing campaigns',
 }
 
-export default async function SignUpPage(props: { searchParams: Promise<{ message: string }> }): Promise<React.ReactElement> {
-  const searchParams = await props.searchParams
-
-  const handleSignup = async (email: string, password: string, name: string) => {
+export default async function SignUpPage(): Promise<React.ReactElement> {
+  const handleSignup = async (email: string, password: string) => {
     'use server'
 
     const supabase = await createClient()

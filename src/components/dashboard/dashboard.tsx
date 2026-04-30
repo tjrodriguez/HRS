@@ -58,7 +58,6 @@ export function Dashboard(): React.ReactElement {
     return holidaysByDate.get(dateStr) || [];
   };
 
-  const isHolidayDay = (date: Date) => getHolidaysForDay(date).length > 0;
   const needsReminderDay = (date: Date) => {
     const dayHolidays = getHolidaysForDay(date);
     return dayHolidays.some(h => {

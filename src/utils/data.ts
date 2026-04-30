@@ -96,6 +96,44 @@ type AnalyticsRow = {
   platform?: string;
 };
 
+type CampaignQueryRow = {
+  id: string;
+  user_id: string;
+  holiday_id: string;
+  content: string;
+  platforms?: string[] | null;
+  status: Campaign["status"];
+  scheduled_date?: string | null;
+  created_at: string;
+  updated_at: string;
+  holiday?: Holiday | null;
+};
+
+type AnalyticsEventRow = {
+  campaign_id: string;
+  event_type: string;
+  platform: string;
+  metrics?: Record<string, unknown>;
+  created_at: string;
+};
+
+type TemplateRow = {
+  id: string;
+  user_id: string;
+  name: string;
+  content: string;
+  hashtags?: string[] | null;
+  category?: string | null;
+  holiday_name?: string | null;
+  business_type?: string | null;
+  tone?: string | null;
+  platforms?: string[] | null;
+  is_favorite?: boolean | null;
+  usage_count?: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
 const getMetricValue = (metrics: Record<string, unknown> | undefined, key: string): number => {
   const value = metrics?.[key];
   return typeof value === "number" ? value : 0;
@@ -222,14 +260,16 @@ export async function fetchCampaigns(): Promise<Campaign[]> {
     return [];
   }
 
-  return (data || []).map((item: any) => ({
+  const rows = (data || []) as CampaignQueryRow[];
+
+  return rows.map((item) => ({
     id: item.id,
     user_id: item.user_id,
     holiday_id: item.holiday_id,
     content: item.content,
     platforms: item.platforms || [],
     status: item.status,
-    scheduled_date: item.scheduled_date,
+    scheduled_date: item.scheduled_date ?? undefined,
     created_at: item.created_at,
     updated_at: item.updated_at,
     holiday: item.holiday ? {
@@ -269,7 +309,8 @@ export async function fetchCampaignAnalytics(): Promise<CampaignAnalytics[]> {
     return [];
   }
 
-  const campaignIds = campaigns.map((c: any) => c.id);
+  const campaignRows = campaigns as CampaignQueryRow[];
+  const campaignIds = campaignRows.map((c) => c.id);
 
   // Fetch analytics events for these campaigns
   const { data: events, error: eventsError } = await supabase
@@ -283,19 +324,20 @@ export async function fetchCampaignAnalytics(): Promise<CampaignAnalytics[]> {
   }
 
   // Group events by campaign
-  const eventsByCampaign = new Map<string, any[]>();
-  (events || []).forEach((evt: any) => {
+  const eventRows = (events || []) as AnalyticsEventRow[];
+  const eventsByCampaign = new Map<string, AnalyticsEventRow[]>();
+  eventRows.forEach((evt) => {
     const list = eventsByCampaign.get(evt.campaign_id) || [];
     list.push(evt);
     eventsByCampaign.set(evt.campaign_id, list);
   });
 
-  return campaigns.map((campaign: any) => {
+  return campaignRows.map((campaign) => {
     const campaignEvents = eventsByCampaign.get(campaign.id) || [];
-    const likes = campaignEvents.reduce((sum: number, e: any) => sum + getMetricValue(e.metrics, "likes"), 0);
-    const comments = campaignEvents.reduce((sum: number, e: any) => sum + getMetricValue(e.metrics, "comments"), 0);
-    const shares = campaignEvents.reduce((sum: number, e: any) => sum + getMetricValue(e.metrics, "shares"), 0);
-    const reach = campaignEvents.reduce((sum: number, e: any) => sum + getMetricValue(e.metrics, "reach"), 0);
+    const likes = campaignEvents.reduce((sum: number, e) => sum + getMetricValue(e.metrics, "likes"), 0);
+    const comments = campaignEvents.reduce((sum: number, e) => sum + getMetricValue(e.metrics, "comments"), 0);
+    const shares = campaignEvents.reduce((sum: number, e) => sum + getMetricValue(e.metrics, "shares"), 0);
+    const reach = campaignEvents.reduce((sum: number, e) => sum + getMetricValue(e.metrics, "reach"), 0);
     const totalEngagement = likes + comments + shares;
     const engagementRate = reach > 0 ? (totalEngagement / reach) * 100 : 0;
 
@@ -307,7 +349,7 @@ export async function fetchCampaignAnalytics(): Promise<CampaignAnalytics[]> {
         content: campaign.content,
         platforms: campaign.platforms || [],
         status: campaign.status,
-        scheduled_date: campaign.scheduled_date,
+        scheduled_date: campaign.scheduled_date ?? undefined,
         created_at: campaign.created_at,
         updated_at: campaign.updated_at,
         holiday: campaign.holiday ? {
@@ -320,7 +362,7 @@ export async function fetchCampaignAnalytics(): Promise<CampaignAnalytics[]> {
           category: campaign.holiday.category,
         } : undefined,
       },
-      events: campaignEvents.map((e: any) => ({
+      events: campaignEvents.map((e) => ({
         event_type: e.event_type,
         platform: e.platform,
         metrics: e.metrics || {},
@@ -366,19 +408,21 @@ export async function fetchTemplates(): Promise<Template[]> {
     return [];
   }
 
-  return (data || []).map((item: any) => ({
+  const rows = (data || []) as TemplateRow[];
+
+  return rows.map((item) => ({
     id: item.id,
     user_id: item.user_id,
     name: item.name,
     content: item.content,
     hashtags: item.hashtags || [],
     category: item.category || "general",
-    holiday_name: item.holiday_name,
-    business_type: item.business_type,
-    tone: item.tone,
+    holiday_name: item.holiday_name ?? undefined,
+    business_type: item.business_type ?? undefined,
+    tone: item.tone ?? undefined,
     platforms: item.platforms || [],
-    is_favorite: item.is_favorite || false,
-    usage_count: item.usage_count || 0,
+    is_favorite: !!item.is_favorite,
+    usage_count: item.usage_count ?? 0,
     created_at: item.created_at,
     updated_at: item.updated_at,
   }));

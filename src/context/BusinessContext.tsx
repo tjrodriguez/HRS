@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { fetchHolidays, fetchProfile, fetchEngagementData, fetchCampaigns, fetchCampaignAnalytics, fetchTemplates, Holiday as DbHoliday, EngagementData as DbEngagementData, Campaign as DbCampaign, CampaignAnalytics as DbCampaignAnalytics, Template as DbTemplate } from "@/utils/data";
+import { fetchHolidays, fetchProfile, fetchEngagementData, fetchCampaigns, fetchCampaignAnalytics, fetchTemplates, Holiday as DbHoliday, EngagementData as DbEngagementData, Campaign as DbCampaign } from "@/utils/data";
 
 /**
  * Context types with normalized field names

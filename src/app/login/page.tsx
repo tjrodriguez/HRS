@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Checkbox } from '@/components/ui/checkbox'
-import { CalendarDays, ArrowRight, AlertCircle, Zap, Shield } from 'lucide-react'
+import { CalendarDays, ArrowRight, AlertCircle, Zap } from 'lucide-react'
 
 export const metadata = {
   title: 'Sign In - HolidayBoost',
@@ -29,7 +29,6 @@ export default async function LoginPage(props: { searchParams: Promise<{ message
 
     const email = formData.get('email') as string
     const password = formData.get('password') as string
-    const rememberMe = formData.get('rememberMe') === 'on'
     const supabase = await createClient()
 
     const { error } = await supabase.auth.signInWithPassword({
@@ -42,27 +41,6 @@ export default async function LoginPage(props: { searchParams: Promise<{ message
     }
 
     redirect('/')
-  }
-
-  const createAccount = async (email: string, password: string, name: string) => {
-    'use server'
-
-    const supabase = await createClient()
-
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    })
-
-    if (error) {
-      return { error: error.message || 'Failed to create account' }
-    }
-
-    if (data?.user && data.user.identities?.length === 0) {
-      return { error: 'Email already registered. Try signing in instead.' }
-    }
-
-    return { success: true }
   }
 
   return (

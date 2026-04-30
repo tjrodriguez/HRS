@@ -35,7 +35,7 @@ const DEMO_ACCOUNTS = [
  * GET /api/social/accounts
  * Get simulated social media accounts (demo mode)
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const supabase = await createClient();
 

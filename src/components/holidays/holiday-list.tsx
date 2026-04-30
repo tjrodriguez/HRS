@@ -20,10 +20,6 @@ export type Holiday = {
   description: string
 }
 
-function formatDisplayDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
 export function HolidayList({ initialHolidays }: { initialHolidays: Holiday[] }): React.ReactElement {
   const [search, setSearch] = useState("")
   const [category, setCategory] = useState<string>("all")

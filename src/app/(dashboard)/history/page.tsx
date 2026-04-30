@@ -1,14 +1,12 @@
  'use client';
 
 import * as React from 'react';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   History, 
   Filter, 
   Search, 
   Trash2, 
-  RefreshCw, 
   ChevronLeft, 
   ChevronRight,
   Calendar,
@@ -53,7 +51,6 @@ const PLATFORMS = [
 ];
 
 export default function HistoryPage(): React.ReactElement {
-  const router = useRouter();
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [stats, setStats] = useState<ActivityStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -70,7 +67,7 @@ export default function HistoryPage(): React.ReactElement {
   const [dateTo, setDateTo] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
-  const loadLogs = async () => {
+  const loadLogs = useCallback(async () => {
     setLoading(true);
     try {
       const result = await fetchActivityLogs({
@@ -90,7 +87,7 @@ export default function HistoryPage(): React.ReactElement {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activityType, platform, search, dateFrom, dateTo, offset]);
 
   const loadStats = async () => {
     setLoadingStats(true);
@@ -107,7 +104,7 @@ export default function HistoryPage(): React.ReactElement {
   useEffect(() => {
     loadLogs();
     loadStats();
-  }, [offset, activityType, platform, search, dateFrom, dateTo]);
+  }, [loadLogs]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

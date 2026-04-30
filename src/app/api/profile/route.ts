@@ -5,7 +5,7 @@ import { createClient } from '@/utils/supabase/server';
  * GET /api/profile
  * Fetch user profile
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const supabase = await createClient();
 

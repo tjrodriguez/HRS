@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Menu, UserCircle } from "lucide-react"
+import { UserCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {

@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { parseISO, format } from 'date-fns';
 import { createCampaign, scheduleCampaign, updateCampaign, Campaign } from '@/lib/campaigns';
 import { createTemplate, generateTemplateName } from '@/lib/templates';
-import { fetchSocialAccounts, postToSocial, SocialAccount, getConnectedPlatforms } from '@/lib/social';
+import { fetchSocialAccounts, postToSocial, getConnectedPlatforms } from '@/lib/social';
 import { logCaptionGenerated, logPostSimulated, logCampaignScheduled, logTemplateSaved } from '@/lib/activity';
 
 // Social media SVG components
@@ -37,7 +37,6 @@ export default function CreatePage(): React.ReactElement {
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [posting, setPosting] = useState(false);
   const [campaignId, setCampaignId] = useState<string | null>(null);
-  const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [connectedPlatforms, setConnectedPlatforms] = useState({
     instagram: false,
     facebook: false,
@@ -155,7 +154,6 @@ export default function CreatePage(): React.ReactElement {
     const loadSocialAccounts = async () => {
       try {
         const accounts = await fetchSocialAccounts();
-        setSocialAccounts(accounts);
         setConnectedPlatforms(getConnectedPlatforms(accounts));
       } catch (error) {
         console.error('Error loading social accounts:', error);
@@ -362,7 +360,7 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
     };
 
     generateContent();
-  }, [holiday, profile, holidayId, generated, loading]);
+  }, [holiday, profile, holidayId, generated, loading, platforms]);
 
   const handleRegenerateCaption = async () => {
   if (!holiday || !profile) return;
@@ -426,7 +424,7 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
     setSavingTemplate(true);
     try {
       const activePlatforms = Object.entries(platforms)
-        .filter(([_, enabled]) => enabled)
+        .filter(([, enabled]) => enabled)
         .map(([name]) => name);
 
       const templateName = generateTemplateName(content.instagram, holiday?.name);
@@ -464,16 +462,6 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
     } finally {
       setSavingTemplate(false);
     }
-  };
-
-  // Platform-specific content handlers
-  const getPlatformContent = () => {
-    if (platforms.facebook) {
-      // Facebook: Full content
-      return content.instagram;
-    }
-    // Instagram: Default
-    return content.instagram;
   };
 
   const getActivePlatform = () => {
@@ -553,7 +541,7 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
       // Log campaign scheduling
       try {
         const selectedPlatforms = Object.entries(platforms)
-          .filter(([_, enabled]) => enabled)
+          .filter(([, enabled]) => enabled)
           .map(([name]) => name as 'instagram' | 'facebook');
         
         await logCampaignScheduled(
@@ -583,7 +571,7 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
     if (!holiday || !profile) return;
 
     const selectedPlatforms = Object.entries(platforms)
-      .filter(([_, enabled]) => enabled)
+      .filter(([, enabled]) => enabled)
       .map(([name]) => name as 'instagram' | 'facebook');
 
     if (selectedPlatforms.length === 0) {

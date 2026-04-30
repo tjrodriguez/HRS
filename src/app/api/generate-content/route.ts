@@ -418,26 +418,6 @@ function parseCaptionArray(content: string): string[] | null {
 	}
 }
 
-function parseGroqJsonObject(content: string): Record<string, unknown> | null {
-	const normalized = (content || '').replace(/^```json\s*|^```\s*|\s*```$/gim, '').trim();
-	const objectMatch = normalized.match(/\{[\s\S]*\}/);
-	const candidates = [normalized, objectMatch?.[0] || ''];
-
-	for (const candidate of candidates) {
-		if (!candidate) continue;
-		try {
-			const parsed = JSON.parse(candidate.replace(/,\s*([}\]])/g, '$1'));
-			if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-				return parsed as Record<string, unknown>;
-			}
-		} catch {
-			// continue trying other candidate
-		}
-	}
-
-	return null;
-}
-
 function buildCaptionSystemPrompt({
 	hasPreviousCaptions,
 	strictUniqueness,
