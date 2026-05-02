@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useState } from "react";
-import { Heart, Copy, Trash2, Sparkles, Tag, Hash } from "lucide-react";
+import { Heart, Copy, Trash2, Sparkles, Tag, Hash, X, ImageIcon, Maximize2 } from "lucide-react";
 import { useNotification } from "@/components/notifications";
 import { Template } from "@/utils/data";
 import { toggleFavoriteTemplate, incrementTemplateUsage, deleteTemplate } from "@/lib/templates";
@@ -18,6 +18,7 @@ export function TemplateCard({ template, onUpdate, onUse }: TemplateCardProps): 
   const [isFavorite, setIsFavorite] = useState(template.is_favorite);
   const [isDeleting, setIsDeleting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showImagePreview, setShowImagePreview] = useState(false);
 
   const handleToggleFavorite = async () => {
     const newValue = !isFavorite;
@@ -76,11 +77,11 @@ export function TemplateCard({ template, onUpdate, onUse }: TemplateCardProps): 
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-gray-100 p-5 hover:shadow-lg transition-all duration-300 group">
+    <div className="bg-card rounded-xl shadow-md border border-border p-5 hover:shadow-lg transition-all duration-300 group">
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-gray-900 truncate pr-2">{template.name}</h3>
+          <h3 className="font-bold text-foreground truncate pr-2">{template.name}</h3>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span
               className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
@@ -90,7 +91,7 @@ export function TemplateCard({ template, onUpdate, onUse }: TemplateCardProps): 
               {template.category}
             </span>
             {template.holiday_name && (
-              <span className="flex items-center gap-1 text-xs text-gray-500">
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Tag className="w-3 h-3" />
                 {template.holiday_name}
               </span>
@@ -102,7 +103,7 @@ export function TemplateCard({ template, onUpdate, onUse }: TemplateCardProps): 
           className={`p-2 rounded-lg transition-colors ${
             isFavorite
               ? "text-red-500 bg-red-50 hover:bg-red-100"
-              : "text-gray-400 hover:text-red-500 hover:bg-red-50"
+              : "text-muted-foreground hover:text-red-500 hover:bg-red-50"
           }`}
           aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
         >
@@ -110,9 +111,28 @@ export function TemplateCard({ template, onUpdate, onUse }: TemplateCardProps): 
         </button>
       </div>
 
+      {/* Image Thumbnail */}
+      {template.image_url && (
+        <div className="mb-3">
+          <div 
+            className="relative group/image cursor-pointer rounded-lg overflow-hidden border border-border"
+            onClick={() => setShowImagePreview(true)}
+          >
+            <img 
+              src={template.image_url} 
+              alt="Template" 
+              className="w-full h-32 object-cover transition-transform group-hover/image:scale-105"
+            />
+            <div className="absolute inset-0 bg-black/0 group-hover/image:bg-black/20 transition-colors flex items-center justify-center">
+              <Maximize2 className="w-6 h-6 text-white opacity-0 group-hover/image:opacity-100 transition-opacity" />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
-      <div className="bg-gray-50 rounded-lg p-3 mb-3">
-        <p className="text-sm text-gray-700 line-clamp-3 whitespace-pre-wrap">
+      <div className="bg-muted/50 rounded-lg p-3 mb-3">
+        <p className="text-sm text-foreground/80 line-clamp-3 whitespace-pre-wrap">
           {template.content}
         </p>
       </div>
@@ -120,20 +140,20 @@ export function TemplateCard({ template, onUpdate, onUse }: TemplateCardProps): 
       {/* Hashtags */}
       {template.hashtags.length > 0 && (
         <div className="flex items-center gap-1.5 mb-3 flex-wrap">
-          <Hash className="w-3 h-3 text-gray-400" />
+          <Hash className="w-3 h-3 text-muted-foreground" />
           {template.hashtags.slice(0, 5).map((tag, idx) => (
-            <span key={idx} className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+            <span key={idx} className="text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded">
               {tag}
             </span>
           ))}
           {template.hashtags.length > 5 && (
-            <span className="text-xs text-gray-400">+{template.hashtags.length - 5}</span>
+            <span className="text-xs text-muted-foreground">+{template.hashtags.length - 5}</span>
           )}
         </div>
       )}
 
       {/* Meta */}
-      <div className="flex items-center justify-between text-xs text-gray-400 mb-3">
+      <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
         <div className="flex items-center gap-3">
           {template.tone && <span>Tone: {template.tone}</span>}
           {template.platforms.length > 0 && (
@@ -144,11 +164,11 @@ export function TemplateCard({ template, onUpdate, onUse }: TemplateCardProps): 
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+      <div className="flex items-center gap-2 pt-3 border-t border-border">
         {onUse && (
           <button
             onClick={handleUse}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all text-sm font-semibold"
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all text-sm font-semibold"
           >
             <Sparkles className="w-4 h-4" />
             Use Template
@@ -156,7 +176,7 @@ export function TemplateCard({ template, onUpdate, onUse }: TemplateCardProps): 
         )}
         <button
           onClick={handleCopy}
-          className="flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-semibold"
+          className="flex items-center justify-center gap-2 px-3 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors text-sm font-semibold"
           title="Copy to clipboard"
         >
           <Copy className={`w-4 h-4 ${copied ? "text-green-600" : ""}`} />
@@ -165,12 +185,64 @@ export function TemplateCard({ template, onUpdate, onUse }: TemplateCardProps): 
         <button
           onClick={handleDelete}
           disabled={isDeleting}
-          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+          className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
           title="Delete template"
         >
           <Trash2 className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Full Image Preview Modal */}
+      {showImagePreview && template.image_url && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setShowImagePreview(false)}
+        >
+          <div 
+            className="relative max-w-4xl w-full bg-card rounded-xl overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-primary" />
+                <h3 className="font-semibold text-foreground">{template.name}</h3>
+              </div>
+              <button
+                onClick={() => setShowImagePreview(false)}
+                className="p-2 hover:bg-muted rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-muted-foreground" />
+              </button>
+            </div>
+            
+            {/* Modal Content */}
+            <div className="p-4">
+              <img 
+                src={template.image_url} 
+                alt="Template Preview" 
+                className="w-full max-h-[60vh] object-contain rounded-lg"
+              />
+              
+              {/* Caption Preview */}
+              <div className="mt-4 p-4 bg-muted/50 rounded-lg">
+                <p className="text-sm text-foreground/80 whitespace-pre-wrap">
+                  {template.content}
+                </p>
+                {template.hashtags.length > 0 && (
+                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                    {template.hashtags.map((tag, idx) => (
+                      <span key={idx} className="text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

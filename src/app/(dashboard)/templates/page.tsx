@@ -35,7 +35,7 @@ export default function TemplatesPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex items-center gap-3 text-gray-500">
+        <div className="flex items-center gap-3 text-muted-foreground">
           <RefreshCw className="w-5 h-5 animate-spin" />
           <p>Loading templates...</p>
         </div>
@@ -46,12 +46,12 @@ export default function TemplatesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white shadow-lg">
+      <div className="bg-card rounded-xl p-6 shadow-md border border-border">
         <div className="flex items-center gap-3 mb-2">
-          <BookOpen className="w-6 h-6" />
-          <h1 className="text-2xl font-bold">Content Library</h1>
+          <BookOpen className="w-6 h-6 text-primary" />
+          <h1 className="text-2xl font-bold text-foreground">Content Library</h1>
         </div>
-        <p className="text-blue-100">
+        <p className="text-muted-foreground">
           Save, organize, and reuse your best captions and marketing content.
         </p>
       </div>

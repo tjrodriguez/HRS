@@ -48,16 +48,13 @@ export async function GET(request: NextRequest) {
     if (error) {
       // Gracefully handle missing table — return empty list instead of crashing
       if (error.message?.includes('Could not find the table') || error.code === 'PGRST205') {
-        console.warn('Templates table not found in database. Run migration 004_add_templates_table.sql');
         return NextResponse.json({ templates: [] });
       }
-      console.error('Error fetching templates:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ templates });
   } catch (error) {
-    console.error('Error in GET /api/templates:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -92,6 +89,7 @@ export async function POST(request: NextRequest) {
       business_type,
       tone,
       platforms,
+      image_url,
     } = body;
 
     if (!name || !content) {
@@ -113,6 +111,7 @@ export async function POST(request: NextRequest) {
         business_type: business_type || null,
         tone: tone || null,
         platforms: platforms || [],
+        image_url: image_url || null,
       })
       .select()
       .single();

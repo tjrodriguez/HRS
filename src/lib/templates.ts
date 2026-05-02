@@ -11,6 +11,7 @@ export interface TemplateInput {
   business_type?: string;
   tone?: string;
   platforms?: string[];
+  image_url?: string;
 }
 
 /**

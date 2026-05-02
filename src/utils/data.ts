@@ -84,6 +84,7 @@ export interface Template {
   business_type?: string;
   tone?: string;
   platforms: string[];
+  image_url?: string;
   is_favorite: boolean;
   usage_count: number;
   created_at: string;
@@ -128,6 +129,7 @@ type TemplateRow = {
   business_type?: string | null;
   tone?: string | null;
   platforms?: string[] | null;
+  image_url?: string | null;
   is_favorite?: boolean | null;
   usage_count?: number | null;
   created_at: string;
@@ -159,6 +161,24 @@ export async function fetchHolidays(): Promise<Holiday[]> {
   }
 
   return data || [];
+}
+
+/**
+ * Get upcoming holidays within specified days (default 7 days)
+ * Returns holidays that are coming up soon for reminder purposes
+ */
+export async function getUpcomingHolidays(days: number = 7): Promise<Holiday[]> {
+  const holidays = await fetchHolidays();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return holidays.filter((holiday) => {
+    const holidayDate = new Date(holiday.date);
+    holidayDate.setHours(0, 0, 0, 0);
+    const diffTime = holidayDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= days;
+  });
 }
 
 /**
@@ -421,6 +441,7 @@ export async function fetchTemplates(): Promise<Template[]> {
     business_type: item.business_type ?? undefined,
     tone: item.tone ?? undefined,
     platforms: item.platforms || [],
+    image_url: item.image_url ?? undefined,
     is_favorite: !!item.is_favorite,
     usage_count: item.usage_count ?? 0,
     created_at: item.created_at,

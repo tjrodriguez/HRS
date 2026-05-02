@@ -146,10 +146,6 @@ export async function POST(request: NextRequest) {
 			}
 			
 			if (missingFields.length > 0) {
-				console.error('Caption generation validation failed:', {
-					missingFields,
-					receivedPayload: { holidayName, businessName, businessType, tone, businessNiche, targetAudience, platform },
-				});
 				return NextResponse.json(
 					{ 
 						error: 'Missing required fields', 
@@ -164,7 +160,6 @@ export async function POST(request: NextRequest) {
 		const supportedPlatforms = ['Instagram', 'Facebook'];
 		const normalizedPlatform = platform ? platform.charAt(0).toUpperCase() + platform.slice(1).toLowerCase() : platform;
 		if (normalizedPlatform && !supportedPlatforms.includes(normalizedPlatform)) {
-			console.error('Invalid platform:', { platform, normalizedPlatform, supportedPlatforms });
 			return NextResponse.json(
 				{
 					error: 'Invalid platform',
@@ -178,13 +173,6 @@ export async function POST(request: NextRequest) {
 			const disallowedCaptions = [...normalizedPreviousCaptions];
 			let usedFallback = false;
 
-			console.log('Generating caption for:', {
-				holidayName,
-				businessName,
-				previousCaptions: normalizedPreviousCaptions.length,
-				strictUniqueness,
-				retryLimit: CAPTION_RETRY_LIMIT,
-			});
 
 			if (stream && !isRegenerationRequest) {
 				const streamSystemPrompt = buildCaptionSystemPrompt({
@@ -235,7 +223,6 @@ export async function POST(request: NextRequest) {
 							}
 							controller.close();
 						} catch (streamError) {
-							console.error('Groq caption stream failed:', streamError);
 							controller.error(streamError);
 						}
 					},
@@ -293,35 +280,22 @@ export async function POST(request: NextRequest) {
 				});
 
 				const contentText = completion.choices?.[0]?.message?.content || '';
-				console.log(
-					`Caption generation attempt ${attempt + 1}/${CAPTION_RETRY_LIMIT} returned raw response:`,
-					contentText
-				);
 
 				const parsedCaptions = parseCaptionArray(contentText);
 				if (!parsedCaptions || parsedCaptions.length === 0) {
 					parsingFailures += 1;
-					console.warn(
-						`Caption generation parse failure on attempt ${attempt + 1}/${CAPTION_RETRY_LIMIT}. Retrying with stricter prompt.`
-					);
 					continue;
 				}
 
 				const candidateCaption = parsedCaptions.map((caption) => String(caption || '').trim()).find(Boolean);
 				if (!candidateCaption) {
 					parsingFailures += 1;
-					console.warn(
-						`Caption generation produced empty caption on attempt ${attempt + 1}/${CAPTION_RETRY_LIMIT}. Retrying.`
-					);
 					continue;
 				}
 
 				if (isCaptionTooSimilar(candidateCaption, disallowedCaptions)) {
 					duplicateFailures += 1;
 					disallowedCaptions.push(candidateCaption);
-					console.warn(
-						`Caption generation produced a duplicate/similar caption on attempt ${attempt + 1}/${CAPTION_RETRY_LIMIT}. Retrying.`
-					);
 					continue;
 				}
 
@@ -341,12 +315,6 @@ export async function POST(request: NextRequest) {
 					previousCaptions: disallowedCaptions,
 				});
 
-				console.warn('Caption generation fell back after retries.', {
-					attempts: CAPTION_RETRY_LIMIT,
-					parsingFailures,
-					duplicateFailures,
-					isRegenerationRequest,
-				});
 			}
 
 			const payload = {
@@ -391,7 +359,6 @@ export async function POST(request: NextRequest) {
 
 		return NextResponse.json(fallbackPayload);
 	} catch (error) {
-		console.error('Error in generate-content route:', error);
 		return NextResponse.json(
 			{ error: 'Failed to generate content', details: error instanceof Error ? error.message : 'Unknown error' },
 			{ status: 500 }

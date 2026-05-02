@@ -176,12 +176,16 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
     if (savedState) {
       try {
         const parsed = JSON.parse(savedState);
-        console.log('[CreatePage] Found saved state:', { hasImage: !!parsed.content?.imageUrl, hasCaption: !!parsed.content?.instagram, timestamp: parsed.timestamp });
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[CreatePage] Found saved state:', { hasImage: !!parsed.content?.imageUrl, hasCaption: !!parsed.content?.instagram, timestamp: parsed.timestamp });
+        }
         // Only restore if saved within last 30 minutes
         if (parsed.timestamp && Date.now() - parsed.timestamp < 30 * 60 * 1000) {
           // Restore if we have any content (caption, image, or hashtags)
           if (parsed.content && (parsed.content.instagram || parsed.content.imageUrl || parsed.content.hashtags?.length > 0)) {
-            console.log('[CreatePage] Restoring content with imageUrl:', parsed.content.imageUrl);
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[CreatePage] Restoring content with imageUrl:', parsed.content.imageUrl);
+            }
             setContent(parsed.content);
           }
           if (parsed.platforms) {
@@ -195,7 +199,9 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
           setGenerated(true);
           // Clear the saved state after restoration
           localStorage.removeItem(`create-page-state-${holidayId}`);
-          console.log('[CreatePage] State restored successfully');
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[CreatePage] State restored successfully');
+          }
         } else {
           // Clear stale state
           localStorage.removeItem(`create-page-state-${holidayId}`);
@@ -242,7 +248,9 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
           location: profile.location || 'Local Area',
         };
 
-        console.log('Sending to /api/generate-content:', requestBody);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Sending to /api/generate-content:', requestBody);
+        }
 
         const response = await fetch('/api/generate-content', {
           method: 'POST',
@@ -250,13 +258,19 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
           body: JSON.stringify(requestBody),
         });
 
-        console.log('API response status:', response.status);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('API response status:', response.status);
+        }
         
         const data = await response.json();
-        console.log('API response data:', data);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('API response data:', data);
+        }
 
         if (!response.ok) {
-          console.error('API error response:', data);
+          if (process.env.NODE_ENV === 'development') {
+            console.error('API error response:', data);
+          }
           const defaultHashtags = [
             `#${holiday.name.replace(/\s+/g, '')}`,
             '#SmallBusiness',
@@ -348,7 +362,9 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
               });
             }
           } catch {
-            console.debug('Could not fetch existing campaigns');
+            if (process.env.NODE_ENV === 'development') {
+              console.debug('Could not fetch existing campaigns');
+            }
           }
 
           // If no existing campaign, create a new one
@@ -478,6 +494,7 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
         business_type: profile?.type,
         tone: profile?.tone,
         platforms: activePlatforms,
+        image_url: content.imageUrl || undefined,
       });
 
       if (result) {

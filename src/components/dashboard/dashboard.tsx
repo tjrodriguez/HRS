@@ -1,19 +1,195 @@
 "use client";
 import * as React from 'react'
 import Link from 'next/link';
-import { useBusiness, Holiday } from '@/context/BusinessContext';
-import { Calendar, Bell, TrendingUp, Sparkles, Clock, ArrowRight, Gift, Zap, Target, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, parseISO, differenceInDays, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday } from 'date-fns';
-import { useState, useMemo } from 'react';
+import { useBusiness, Holiday, Campaign } from '@/context/BusinessContext';
+import { Calendar, Bell, Sparkles, Clock, ArrowRight, Zap, Target, ChevronLeft, ChevronRight, History, Plus, BookOpen, X } from 'lucide-react';
+import { format, parseISO, differenceInDays, addDays, startOfMonth, endOfMonth, startOfWeek, addMonths, eachDayOfInterval, isSameDay, isToday, getMonth, isSameMonth } from 'date-fns';
+import { useState, useMemo, useEffect } from 'react';
+import { fetchActivityLogs, ActivityLog, getActivityTypeDisplay, getActivityIcon } from '@/lib/activity';
+import { useRouter } from 'next/navigation';
+
+// Day Popover Component
+interface DayPopoverProps {
+  day: Date;
+  holidays: Holiday[];
+  campaigns: Campaign[];
+  hasReminder: boolean;
+  onClose: () => void;
+}
+
+function DayPopover({ day, holidays: dayHolidays, campaigns: dayCampaigns, hasReminder, onClose }: DayPopoverProps): React.ReactElement {
+  const router = useRouter();
+  const isCurrentDay = isToday(day);
+  
+  // Find holiday ID for create link (prefer first holiday)
+  const holidayId = dayHolidays[0]?.id;
+  
+  return (
+    <div className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-2 w-56 bg-card rounded-lg shadow-xl border border-border p-3 animate-in fade-in zoom-in-95 duration-200">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3 pb-2 border-b border-border">
+        <div>
+          <p className="text-sm font-semibold text-foreground">{format(day, 'EEEE')}</p>
+          <p className={`text-xs ${isCurrentDay ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
+            {format(day, 'MMMM d, yyyy')}
+            {isCurrentDay && ' • Today'}
+          </p>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-1 hover:bg-muted rounded transition-colors"
+          aria-label="Close"
+        >
+          <X className="w-4 h-4 text-muted-foreground" />
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="space-y-3">
+        {/* Scheduled Campaigns */}
+        {dayCampaigns.length > 0 && (
+          <div>
+            <p className="text-[10px] font-semibold text-accent uppercase tracking-wider mb-1.5">Scheduled ({dayCampaigns.length})</p>
+            <div className="space-y-1.5">
+              {dayCampaigns.slice(0, 2).map((campaign) => (
+                <div key={campaign.id} className="flex items-center gap-2 p-1.5 bg-accent/10 rounded">
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0" />
+                  <span className="text-xs font-medium text-foreground truncate flex-1">
+                    {campaign.holiday?.name || 'Post'}
+                  </span>
+                  <span className="text-[10px] font-normal text-muted-foreground uppercase">
+                    {Array.isArray(campaign.platforms) ? campaign.platforms.slice(0, 2).join(', ') : (typeof campaign.platforms === 'string' ? campaign.platforms : 'N/A')}
+                  </span>
+                </div>
+              ))}
+              {dayCampaigns.length > 2 && (
+                <p className="text-[10px] font-normal text-muted-foreground pl-1">+{dayCampaigns.length - 2} more</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Holidays */}
+        {dayHolidays.length > 0 && (
+          <div>
+            <p className="text-[10px] font-semibold text-primary uppercase tracking-wider mb-1.5">Holiday{dayHolidays.length > 1 ? 's' : ''}</p>
+            <div className="space-y-1">
+              {dayHolidays.map((holiday) => (
+                <div key={holiday.id} className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
+                  <span className="text-xs font-medium text-foreground">{holiday.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Reminder Status */}
+        {hasReminder && (
+          <div className="flex items-center gap-2 p-1.5 bg-secondary/10 rounded">
+            <Bell className="w-3 h-3 text-secondary" />
+            <span className="text-xs font-medium text-secondary">Reminder day (7 days before)</span>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {dayCampaigns.length === 0 && dayHolidays.length === 0 && !hasReminder && (
+          <p className="text-xs font-medium text-muted-foreground text-center py-2">No events scheduled</p>
+        )}
+
+        {/* Quick Actions */}
+        <div className="pt-2 border-t border-border flex gap-2">
+          {holidayId ? (
+            <Link
+              href={`/create/${holidayId}`}
+              className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-primary text-white text-xs font-medium rounded hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="w-3 h-3" />
+              Create
+            </Link>
+          ) : (
+            <Link
+              href="/templates"
+              className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-primary text-white text-xs font-medium rounded hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="w-3 h-3" />
+              Create
+            </Link>
+          )}
+          <button
+            onClick={() => router.push('/holidays')}
+            className="px-2 py-1.5 bg-muted text-foreground text-xs font-medium rounded hover:bg-muted/80 transition-colors"
+          >
+            View Calendar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Compact Recent Activity component for dashboard
+function CompactRecentActivity(): React.ReactElement {
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadActivity = async () => {
+      try {
+        const result = await fetchActivityLogs({ limit: 2, offset: 0 });
+        setLogs(result.logs);
+      } catch (error) {
+        console.error('Error loading activity:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadActivity();
+  }, []);
+
+  if (loading) {
+    return <div className="text-xs font-medium text-muted-foreground">Loading...</div>;
+  }
+
+  if (logs.length === 0) {
+    return <div className="text-xs font-medium text-muted-foreground">No recent activity</div>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {logs.map((log) => (
+        <Link
+          key={log.id}
+          href="/history"
+          className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors"
+        >
+          <span className="text-sm">{getActivityIcon(log.activity_type)}</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-foreground truncate">
+              {getActivityTypeDisplay(log.activity_type)}
+            </p>
+            {log.holiday_name && (
+              <p className="text-[10px] font-normal text-muted-foreground truncate">{log.holiday_name}</p>
+            )}
+          </div>
+          <span className="text-[10px] font-normal text-muted-foreground whitespace-nowrap">
+            {format(parseISO(log.created_at), 'MMM d')}
+          </span>
+        </Link>
+      ))}
+    </div>
+  );
+}
 
 export function Dashboard(): React.ReactElement {
-  const { profile, holidays, engagementData } = useBusiness();
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const { profile, holidays, campaigns } = useBusiness();
+  const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
   // Get today's date
   const today = new Date();
   
-  // Filter upcoming holidays (within next 60 days)
+  // Filter upcoming holidays (within next 60 days, top 3 only)
   const upcomingHolidays = holidays
     .filter(holiday => {
       const holidayDate = parseISO(holiday.date);
@@ -21,7 +197,7 @@ export function Dashboard(): React.ReactElement {
       return daysUntil >= 0 && daysUntil <= 60;
     })
     .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime())
-    .slice(0, 5);
+    .slice(0, 3);
 
   // Get holidays needing reminders (7 days before)
   const needsReminder = holidays.filter(holiday => {
@@ -31,16 +207,15 @@ export function Dashboard(): React.ReactElement {
     return daysUntilReminder <= 0 && daysUntilReminder >= -1 && !holiday.reminderSent;
   });
 
-  // Calculate stats
-  const totalEngagement = engagementData.reduce((sum, record) => 
-    sum + record.likes + record.comments + record.shares, 0
-  );
-  const totalReach = engagementData.reduce((sum, record) => sum + record.reach, 0);
+  // Standard month calendar view
+  const monthStart = startOfMonth(currentWeek);
+  const monthEnd = endOfMonth(currentWeek);
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+  const calendarEnd = startOfWeek(addDays(monthEnd, 6), { weekStartsOn: 0 });
+  const daysInMonth = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
-  // Calendar helpers
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
-  const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  // Simple month label
+  const monthLabel = format(currentWeek, 'MMMM yyyy');
 
   // Map holidays to dates for quick lookup
   const holidaysByDate = useMemo(() => {
@@ -51,7 +226,7 @@ export function Dashboard(): React.ReactElement {
       map.get(dateStr)!.push(holiday)
     })
     return map
-  }, [holidays])
+  }, [holidays]);
 
   const getHolidaysForDay = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
@@ -66,349 +241,349 @@ export function Dashboard(): React.ReactElement {
     });
   };
 
+  // Map scheduled campaigns to dates for quick lookup
+  const campaignsByDate = useMemo(() => {
+    const map = new Map<string, Campaign[]>();
+    campaigns.forEach((campaign) => {
+      if (campaign.scheduled_date) {
+        const dateStr = format(parseISO(campaign.scheduled_date), 'yyyy-MM-dd')
+        if (!map.has(dateStr)) map.set(dateStr, [])
+        map.get(dateStr)!.push(campaign)
+      }
+    })
+    return map
+  }, [campaigns]);
+
+  const getCampaignsForDay = (date: Date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return campaignsByDate.get(dateStr) || [];
+  };
+
+  // Get urgent holidays (within 3 days)
+  const urgentHolidays = holidays.filter(holiday => {
+    const holidayDate = parseISO(holiday.date);
+    const daysUntil = differenceInDays(holidayDate, today);
+    return daysUntil >= 0 && daysUntil <= 3;
+  }).sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
+
   return (
-    <div className="space-y-8">
-      {/* Hero Welcome Section - Flat Design */}
-      <div className="bg-primary rounded-3xl shadow-xl p-8 md:p-12">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-4">
-              <Gift className="w-6 h-6 text-white/90" />
-              <span className="text-xs font-bold text-white/80 uppercase tracking-widest">Welcome Back</span>
-            </div>
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-3 tracking-tight">
-              Hi {profile?.name}! 🎉
-            </h2>
-            <p className="text-base md:text-lg font-medium text-white/90 max-w-2xl leading-relaxed">
-              Ready to boost your holiday marketing? Let&apos;s create amazing content that drives engagement.
-            </p>
-          </div>
-          <div className="hidden lg:block flex-shrink-0">
-            <div className="bg-white/10 rounded-3xl px-8 py-6 border border-white/20 shadow-lg">
-              <div className="text-center">
-                <p className="text-xs font-bold text-white/60 uppercase tracking-wider mb-2">Today</p>
-                <p className="text-2xl font-extrabold text-white tracking-tight mb-2">{format(today, 'MMM dd')}</p>
-                <div className="text-4xl">📅</div>
-              </div>
-            </div>
-          </div>
+    <div className="space-y-3">
+      {/* Dashboard Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-border">
+        <h1 className="text-sm font-semibold text-foreground">
+          Hi {profile?.name || 'there'}! — {format(today, 'EEEE, MMMM d')}
+        </h1>
+        <div className="flex items-center gap-2">
+          {needsReminder.length > 0 && (
+            <span className="flex items-center gap-1 text-xs font-semibold text-destructive bg-destructive/10 px-2 py-1 rounded">
+              <Bell className="w-3 h-3" />
+              {needsReminder.length}
+            </span>
+          )}
+          <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded">
+            <Calendar className="w-3 h-3" />
+            {upcomingHolidays.length}
+          </span>
         </div>
       </div>
 
-      {/* Stats Cards Grid - Enhanced */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
-        {/* Card 1: Upcoming Holidays */}
-        <div className="group rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-border bg-card p-6 md:p-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md border border-primary/20">
-              <Calendar className="w-6 md:w-7 h-6 md:h-7 text-primary" />
+      {/* Urgent Holiday Banner */}
+      {urgentHolidays.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg p-3">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center">
+              <Bell className="w-4 h-4 text-amber-600" />
             </div>
-            <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full uppercase tracking-wider border border-primary/20">Next 60d</span>
-          </div>
-            <div className="mb-4">
-              <h3 className="text-3xl md:text-4xl font-extrabold text-foreground mb-1 tracking-tight">{upcomingHolidays.length}</h3>
-              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Upcoming Holidays</p>
-            </div>
-            <div className="pt-4 border-t border-white/10 mt-4">
-              <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <ArrowRight className="w-4 h-4 text-primary" />
-                <span className="truncate">{upcomingHolidays.length > 0 ? "Next: " + upcomingHolidays[0].name : "No holidays"}</span>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-semibold text-amber-900">
+                {urgentHolidays.length === 1 
+                  ? `${urgentHolidays[0].name} is coming up!`
+                  : `${urgentHolidays.length} holidays coming up soon`}
+              </h3>
+              <p className="text-xs text-amber-700 mt-0.5">
+                {urgentHolidays.slice(0, 2).map(h => {
+                  const days = differenceInDays(parseISO(h.date), today);
+                  return `${h.name} (${days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `in ${days} days`})`;
+                }).join(', ')}
+                {urgentHolidays.length > 2 && ` +${urgentHolidays.length - 2} more`}
               </p>
             </div>
-          </div>
-
-          {/* Card 2: Pending Reminders */}
-          <div className="group rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-border bg-card p-6 md:p-8">
-            <div className="flex items-center justify-between mb-6">
-              <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-secondary/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md border border-secondary/20">
-                <Bell className="w-6 md:w-7 h-6 md:h-7 text-secondary" />
-              </div>
-              {needsReminder.length > 0 && (
-                <span className="text-xs font-bold text-white bg-destructive px-3 py-1 rounded-full animate-pulse uppercase tracking-wider shadow-lg">
-                  Action!
-                </span>
-              )}
-            </div>
-            <div className="mb-4">
-              <h3 className="text-3xl md:text-4xl font-extrabold text-foreground mb-1 tracking-tight">{needsReminder.length}</h3>
-              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Pending Reminders</p>
-            </div>
-            <div className="pt-4 border-t border-white/10 mt-4">
-              <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <ArrowRight className="w-4 h-4 text-secondary" />
-                {needsReminder.length > 0 ? 'Create posts now' : 'All caught up'}
-              </p>
-            </div>
-          </div>
-
-          {/* Card 3 Total Engagement */}
-          <div className="group rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-border bg-card p-6 md:p-8">
-            <div className="flex items-center justify-between mb-6">
-              <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-accent/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md border border-accent/20">
-                <TrendingUp className="w-6 md:w-7 h-6 md:h-7 text-accent" />
-              </div>
-              <span className="text-xs font-bold text-accent bg-accent/10 px-3 py-1 rounded-full uppercase tracking-wider border border-accent/20">Trending</span>
-            </div>
-            <div className="mb-4">
-              <h3 className="text-3xl md:text-4xl font-extrabold text-foreground mb-1 tracking-tight">{(totalEngagement / 1000).toFixed(1)}k</h3>
-              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Total Engagement</p>
-            </div>
-            <div className="pt-4 border-t border-white/10 mt-4">
-              <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <ArrowRight className="w-4 h-4 text-accent" />
-                <span className="truncate">{(totalReach / 1000).toFixed(0)}k reach</span>
-              </p>
-            </div>
-          </div>
-        </div>
-
-      {/* Holiday Calendar Section */}
-      <div className="rounded-3xl bg-card shadow-xl border border-border overflow-hidden transition-all hover:shadow-2xl">
-        {/* Header */}
-        <div className="bg-muted px-6 md:px-8 py-6 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-primary rounded-xl shadow-lg">
-              <Calendar className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h3 className="text-xl md:text-2xl font-bold text-foreground tracking-tight">Holiday Calendar</h3>
-              <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{format(currentMonth, 'MMMM yyyy')}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentMonth(addDays(currentMonth, -31))}
-              className="p-2 hover:bg-white/10 rounded-xl transition-colors border border-white/10 hover:border-white/20"
-              aria-label="Previous month"
+            <Link
+              href={`/holidays`}
+              className="flex-shrink-0 text-xs font-medium text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-md transition-colors"
             >
-              <ChevronLeft className="w-5 h-5 text-foreground" />
-            </button>
-            <button
-              onClick={() => setCurrentMonth(new Date())}
-              className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded-xl hover:bg-primary-dark transition-all duration-200 border border-primary shadow-md"
-            >
-              Today
-            </button>
-            <button
-              onClick={() => setCurrentMonth(addDays(currentMonth, 31))}
-              className="p-2 hover:bg-white/10 rounded-xl transition-colors border border-white/10 hover:border-white/20"
-              aria-label="Next month"
-            >
-              <ChevronRight className="w-5 h-5 text-foreground" />
-            </button>
-          </div>
-        </div>
-
-        {/* Calendar Grid */}
-        <div className="p-4 md:p-8">
-          {/* Weekday Headers with Theme Colors */}
-          <div className="grid grid-cols-7 gap-2 md:gap-3 mb-4">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, idx) => (
-              <div key={day} className="text-center py-2 md:py-3">
-                <p className={`text-xs md:text-sm font-bold uppercase tracking-wider ${
-                  idx === 0 ? 'text-primary/80' : idx === 6 ? 'text-secondary/80' : 'text-muted-foreground'
-                }`}>{day}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Days Grid */}
-          <div className="grid grid-cols-7 gap-2 md:gap-3">
-            {daysInMonth.map(day => {
-              const dayHolidays = getHolidaysForDay(day);
-              const hasHoliday = dayHolidays.length > 0;
-              const hasReminder = needsReminderDay(day);
-              const isCurrentDay = isToday(day);
-              const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
-              
-              return (
-                <div
-                  key={day.toISOString()}
-                  className={`relative aspect-square rounded-2xl transition-all duration-300 border overflow-hidden group cursor-pointer ${
-                    isCurrentMonth
-                      ? 'bg-card/60 border-white/10 hover:border-primary/30 hover:bg-card/80'
-                      : 'bg-muted/20 border-transparent opacity-50'
-                  } ${hasHoliday ? 'ring-2 ring-primary/60 ring-offset-0 border-primary/40' : hasReminder ? 'ring-2 ring-secondary/50 ring-offset-0' : ''}`}
-                >
-                  {/* Holiday and reminder day indicators */}
-                  {hasHoliday && (
-                    <div className="absolute inset-0 bg-primary/10 rounded-xl"></div>
-                  )}
-                  {hasReminder && !hasHoliday && (
-                    <div className="absolute inset-0 bg-secondary/10 rounded-xl"></div>
-                  )}
-
-                  {/* Day content */}
-                  <div className="relative h-full flex flex-col items-center justify-start p-1 md:p-2 z-10">
-                    <span className={`text-xs md:text-sm font-bold mb-1 transition-all ${
-                      isCurrentDay
-                        ? 'w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center shadow-lg'
-                        : hasHoliday
-                        ? 'text-primary font-extrabold'
-                        : hasReminder
-                        ? 'text-secondary font-semibold'
-                        : 'text-foreground'
-                    }`}>
-                      {format(day, 'd')}
-                    </span>
-                    
-                    {/* Event indicators and holiday names */}
-                    {hasReminder && !hasHoliday && (
-                      <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-secondary rounded-full shadow-md"></div>
-                    )}
-
-                    {hasHoliday && (
-                      <div className="w-full mt-1 px-1 flex flex-col items-center gap-0.5">
-                        {dayHolidays.slice(0, 2).map(h => (
-                          <span key={h.id} className="text-[10px] md:text-xs font-semibold text-primary truncate max-w-full text-center">
-                            {h.name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Legend */}
-          <div className="mt-8 pt-8 border-t border-border flex flex-col sm:flex-row flex-wrap gap-6 sm:gap-8">
-            <div className="flex items-center gap-3 group">
-              <div className="w-4 h-4 rounded-full bg-primary shadow-lg group-hover:scale-125 transition-transform"></div>
-              <span className="text-sm font-semibold text-foreground">Holiday Event</span>
-            </div>
-            <div className="flex items-center gap-3 group">
-              <div className="w-3 h-3 bg-secondary rounded-full shadow-md group-hover:scale-125 transition-transform"></div>
-              <span className="text-sm font-semibold text-foreground">Reminder Day (7 days before)</span>
-            </div>
-            <div className="flex items-center gap-3 group">
-              <div className="w-3 h-3 rounded-full bg-primary shadow-lg group-hover:scale-125 transition-transform"></div>
-              <span className="text-sm font-semibold text-foreground">Today</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Action Required Alert */}
-      {needsReminder.length > 0 && (
-        <div className="rounded-3xl shadow-xl border border-destructive/30 bg-destructive-light">
-          <div className="p-6 md:p-10">
-            <div className="flex flex-col lg:flex-row items-start gap-6 lg:gap-8">
-              <div className="flex-shrink-0">
-                <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-destructive/30 shadow-lg border border-destructive/40">
-                  <Zap className="w-7 h-7 text-destructive animate-pulse" />
-                </div>
-              </div>
-              <div className="flex-1 w-full">
-                <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-2 tracking-tight">⚡ Create Holiday Content</h3>
-                <p className="text-muted-foreground mb-6 font-medium leading-relaxed">
-                  {needsReminder.length} holiday{needsReminder.length > 1 ? 's are' : ' is'} coming up within a week. Don&apos;t miss this opportunity to engage your audience with timely marketing!
-                </p>
-                <div className="space-y-3">
-                  {needsReminder.map(holiday => {
-                    const daysUntil = differenceInDays(parseISO(holiday.date), today);
-                    return (
-                      <div key={holiday.id} className="flex flex-col sm:flex-row sm:items-center justify-between bg-card rounded-2xl p-4 md:p-5 border border-border hover:border-destructive transition-all duration-200 gap-3">
-                        <div>
-                          <p className="text-lg font-bold text-foreground tracking-tight">{holiday.name}</p>
-                          <p className="text-sm font-medium text-muted-foreground flex items-center gap-2 mt-1">
-                            <Clock className="w-4 h-4 text-destructive/70" />
-                            {format(parseISO(holiday.date), 'MMMM dd')} • <span className="text-destructive font-bold">{daysUntil} day{daysUntil !== 1 ? 's' : ''}</span>
-                          </p>
-                        </div>
-                        <Link
-                          href={`/create/${holiday.id}`}
-                          className="flex-shrink-0 px-6 py-2.5 bg-destructive text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:-translate-y-0.5 flex items-center justify-center gap-2 w-full sm:w-auto text-sm md:text-base whitespace-nowrap"
-                        >
-                          <Sparkles className="w-4 h-4 md:w-5 md:h-5" />
-                          Create Now
-                        </Link>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
+              Create Post →
+            </Link>
           </div>
         </div>
       )}
 
-      {/* Upcoming Holidays Section */}
-      <div className="rounded-3xl bg-card shadow-xl border border-border overflow-hidden transition-all hover:shadow-2xl">
-        <div className="bg-muted px-6 md:px-8 py-6 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-accent rounded-xl shadow-md">
-              <Target className="w-6 h-6 text-white" />
+      {/* Main Two-Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+        
+        {/* Left Column (60%) */}
+        <div className="lg:col-span-3 space-y-3">
+          
+          {/* Calendar (4 weeks) */}
+          <div className="bg-card rounded-lg border border-border p-3">
+            {/* Month Header */}
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-border">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-primary" />
+                <h2 className="text-sm font-semibold text-foreground">{monthLabel}</h2>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentWeek(addMonths(currentWeek, -1))}
+                  className="p-1 hover:bg-muted rounded transition-colors"
+                  aria-label="Previous month"
+                >
+                  <ChevronLeft className="w-4 h-4 text-muted-foreground" />
+                </button>
+                <button
+                  onClick={() => setCurrentWeek(new Date())}
+                  className="px-2 py-1 text-xs font-semibold bg-primary text-white rounded hover:bg-primary/90 transition-colors"
+                >
+                  Today
+                </button>
+                <button
+                  onClick={() => setCurrentWeek(addMonths(currentWeek, 1))}
+                  className="p-1 hover:bg-muted rounded transition-colors"
+                  aria-label="Next month"
+                >
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </div>
             </div>
-            <div>
-              <h3 className="text-xl md:text-2xl font-bold text-foreground tracking-tight">Upcoming Holidays</h3>
-              <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Plan your campaigns</p>
+
+
+            {/* Weekday Headers */}
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day, idx) => (
+                <div key={day} className="text-center py-1">
+                  <span className={`text-xs font-medium ${
+                    idx === 0 || idx === 6 ? 'text-muted-foreground' : 'text-foreground'
+                  }`}>{day}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Days Grid (full month view) */}
+            <div className="grid grid-cols-7 gap-1">
+              {daysInMonth.map((day) => {
+                const dayHolidays = getHolidaysForDay(day);
+                const dayCampaigns = getCampaignsForDay(day);
+                const hasReminder = needsReminderDay(day);
+                const hasHoliday = dayHolidays.length > 0;
+                const hasScheduled = dayCampaigns.length > 0;
+                const isCurrentDay = isToday(day);
+                const isSelected = selectedDay && isSameDay(day, selectedDay);
+                const isCurrentMonth = isSameMonth(day, currentWeek);
+                
+                // Check if any holiday on this day needs reminder
+                const holidayNeedsReminder = dayHolidays.some(h => {
+                  const holidayDate = parseISO(h.date);
+                  const reminderDate = addDays(holidayDate, -7);
+                  const daysUntilReminder = differenceInDays(reminderDate, today);
+                  return daysUntilReminder <= 0 && daysUntilReminder >= -1 && !h.reminderSent;
+                });
+                
+                // Styling: fade days outside current month
+                let dayClass = 'hover:bg-muted/50';
+                let textClass = isCurrentMonth ? 'text-foreground' : 'text-muted-foreground/50';
+                
+                if (isCurrentDay) {
+                  dayClass = 'bg-primary text-white rounded-full';
+                  textClass = 'text-white';
+                } else if (!isCurrentMonth) {
+                  dayClass = 'opacity-40';
+                } else if (holidayNeedsReminder) {
+                  // Holiday with active reminder gets subtle ring
+                  dayClass += ' ring-2 ring-destructive/50 rounded-full';
+                }
+                
+                if (isSelected) {
+                  dayClass += ' ring-2 ring-primary ring-offset-1 rounded-full';
+                }
+                
+                return (
+                  <div
+                    key={day.toISOString()}
+                    className="relative"
+                  >
+                    {/* Reminder badge for holidays needing attention */}
+                    {holidayNeedsReminder && (
+                      <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-destructive rounded-full border border-card" />
+                    )}
+                    <button
+                      onClick={() => setSelectedDay(isSelected ? null : day)}
+                      className={`w-full aspect-square flex flex-col items-center justify-center p-1 transition-colors ${dayClass}`}
+                    >
+                      <span className={`text-sm font-medium ${textClass}`}>
+                        {format(day, 'd')}
+                      </span>
+                      {/* Indicators - larger and more visible */}
+                      <div className="flex items-center gap-1 mt-0.5">
+                        {hasScheduled && (
+                          <div className="w-1.5 h-1.5 rounded-full bg-accent" title="Scheduled post" />
+                        )}
+                        {hasHoliday && (
+                          <div className={`w-1.5 h-1.5 rounded-full ${holidayNeedsReminder ? 'bg-destructive' : 'bg-primary'}`} title={holidayNeedsReminder ? 'Holiday with reminder' : 'Holiday'} />
+                        )}
+                      </div>
+                    </button>
+                    
+                    {isSelected && (
+                      <DayPopover
+                        day={day}
+                        holidays={dayHolidays}
+                        campaigns={dayCampaigns}
+                        hasReminder={hasReminder}
+                        onClose={() => setSelectedDay(null)}
+                      />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
-          <Link href="/holidays" className="flex items-center gap-2 px-5 py-2.5 bg-accent/25 text-accent font-bold hover:bg-accent/35 rounded-xl transition-all duration-300 tracking-wide shadow-sm hover:shadow-md border border-accent/30 hover:border-accent/50 whitespace-nowrap">
-            View All
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-        <div className="divide-y divide-white/10">
-          {upcomingHolidays.map((holiday, index) => {
-            const daysUntil = differenceInDays(parseISO(holiday.date), today);
-            const isWithinWeek = daysUntil <= 7;
-            
-            return (
-              <div key={holiday.id} className="p-5 md:p-7 hover:bg-white/5 transition-all duration-300 group border-b-0 last:border-b-0">
-                <div className="flex items-center justify-between gap-4 flex-col sm:flex-row">
-                  <div className="flex items-start gap-4 md:gap-5 flex-1 w-full">
-                    <div className="flex-shrink-0">
-                      <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center font-extrabold text-lg shadow-md border-2 transition-all duration-300 ${
-                        isWithinWeek 
-                          ? 'bg-destructive/10 text-destructive border-destructive scale-110' 
-                          : 'bg-primary/10 text-primary border-primary group-hover:scale-105'
+
+          {/* Upcoming Holidays (Top 3) */}
+          <div className="bg-card rounded-lg border border-border p-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Target className="w-4 h-4 text-accent" />
+                <h3 className="text-sm font-semibold text-foreground">Upcoming</h3>
+              </div>
+              <Link href="/holidays" className="text-xs font-medium text-primary hover:underline">
+                View all
+              </Link>
+            </div>
+            <div className="space-y-2">
+              {upcomingHolidays.map((holiday, index) => {
+                const daysUntil = differenceInDays(parseISO(holiday.date), today);
+                const isWithinWeek = daysUntil <= 7;
+                
+                return (
+                  <div key={holiday.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/30 transition-colors">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-semibold ${
+                        isWithinWeek ? 'bg-destructive/20 text-destructive' : 'bg-primary/10 text-primary'
                       }`}>
                         {index + 1}
                       </div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2 flex-wrap">
-                        <h4 className="text-lg md:text-xl font-bold text-foreground tracking-tight">{holiday.name}</h4>
-                        {isWithinWeek && (
-                          <span className="px-3 py-1 bg-destructive/30 text-destructive text-xs font-bold rounded-full uppercase tracking-wider shadow-md animate-pulse border border-destructive/40 flex-shrink-0">
-                            This Week!
-                          </span>
-                        )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-foreground truncate">{holiday.name}</p>
+                        <p className="text-[10px] font-normal text-muted-foreground">{format(parseISO(holiday.date), 'MMM d')}</p>
                       </div>
-                      <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                        <Calendar className="w-4 h-4 flex-shrink-0" />
-                        <span className="truncate">{format(parseISO(holiday.date), 'EEEE, MMMM dd, yyyy')}</span>
-                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm font-semibold ${isWithinWeek ? 'text-destructive' : 'text-primary'}`}>{daysUntil}d</span>
+                      <Link
+                        href={`/create/${holiday.id}`}
+                        className="p-1.5 bg-primary text-white rounded hover:bg-primary/90 transition-colors"
+                        title="Create post"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </Link>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 md:gap-4 flex-shrink-0 w-full sm:w-auto">
-                    <div className="text-right">
-                      <p className={`text-3xl md:text-4xl font-extrabold tracking-tight ${isWithinWeek ? 'text-destructive' : 'text-primary'}`}>{daysUntil}</p>
-                      <p className="text-xs md:text-xs font-semibold text-muted-foreground uppercase tracking-wide">days away</p>
-                    </div>
-                    <Link
-                      href={`/create/${holiday.id}`}
-                      className="flex-shrink-0 px-4 md:px-5 py-2 md:py-2.5 bg-primary/30 text-primary font-bold rounded-xl hover:bg-primary hover:text-primary-foreground transition-all duration-300 shadow-sm hover:shadow-lg hover:-translate-y-1 hidden sm:block border border-primary/40 hover:border-primary/60 whitespace-nowrap text-sm md:text-base"
-                    >
-                      Create
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-          {upcomingHolidays.length === 0 && (
-            <div className="p-12 md:p-16 text-center">
-              <div className="w-20 h-20 bg-muted/20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg border border-white/10">
-                <Calendar className="w-10 h-10 text-muted-foreground/50" />
-              </div>
-              <h4 className="text-xl font-bold text-foreground mb-2">No Holidays Soon</h4>
-              <p className="text-muted-foreground font-medium">There are no upcoming holidays in the next 60 days.</p>
+                );
+              })}
+              {upcomingHolidays.length === 0 && (
+                <p className="text-xs font-medium text-muted-foreground text-center py-2">No upcoming holidays</p>
+              )}
             </div>
-          )}
+          </div>
+        </div>
+
+        {/* Right Column (40%) */}
+        <div className="lg:col-span-2 space-y-3">
+
+          {/* Action Center */}
+          <div className="bg-card rounded-lg border border-border p-3">
+            <div className="flex items-center gap-2 mb-3">
+              <Zap className="w-4 h-4 text-destructive" />
+              <h3 className="text-sm font-semibold text-foreground">Action Center</h3>
+            </div>
+            
+            {/* Urgent Reminders */}
+            {needsReminder.length > 0 ? (
+              <div className="space-y-2 mb-3">
+                <p className="text-xs font-semibold text-muted-foreground">Urgent ({needsReminder.length})</p>
+                {needsReminder.slice(0, 2).map(holiday => {
+                  const daysUntil = differenceInDays(parseISO(holiday.date), today);
+                  return (
+                    <div key={holiday.id} className="flex items-center justify-between p-2 rounded-md bg-destructive/10 border border-destructive/20">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-foreground truncate">{holiday.name}</p>
+                        <p className="text-[10px] font-normal text-destructive flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {daysUntil} day{daysUntil !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                      <Link
+                        href={`/create/${holiday.id}`}
+                        className="flex items-center gap-1 px-2 py-1 bg-destructive text-white text-xs font-semibold rounded hover:bg-destructive/90 transition-colors"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        Create
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs font-medium text-muted-foreground mb-3">No urgent reminders</p>
+            )}
+
+            {/* Quick Actions */}
+            <div className="grid grid-cols-2 gap-2">
+              <Link
+                href="/templates"
+                className="flex items-center justify-center gap-1 p-2 bg-primary/10 text-primary text-xs font-medium rounded hover:bg-primary/20 transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                Create
+              </Link>
+              <Link
+                href="/holidays"
+                className="flex items-center justify-center gap-1 p-2 bg-muted text-foreground text-xs font-medium rounded hover:bg-muted/80 transition-colors"
+              >
+                <Calendar className="w-3 h-3" />
+                Calendar
+              </Link>
+              <Link
+                href="/history"
+                className="flex items-center justify-center gap-1 p-2 bg-muted text-foreground text-xs font-medium rounded hover:bg-muted/80 transition-colors"
+              >
+                <History className="w-3 h-3" />
+                History
+              </Link>
+              <Link
+                href="/templates"
+                className="flex items-center justify-center gap-1 p-2 bg-muted text-foreground text-xs font-medium rounded hover:bg-muted/80 transition-colors"
+              >
+                <BookOpen className="w-3 h-3" />
+                Library
+              </Link>
+            </div>
+          </div>
+
+          {/* Recent Activity */}
+          <div className="bg-card rounded-lg border border-border p-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4 text-accent" />
+                <h3 className="text-sm font-semibold text-foreground">Recent</h3>
+              </div>
+              <Link href="/history" className="text-xs font-medium text-primary hover:underline flex items-center gap-1">
+                All <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
+            <CompactRecentActivity />
+          </div>
+
         </div>
       </div>
     </div>
