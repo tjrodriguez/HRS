@@ -4,9 +4,10 @@ import { useBusiness, type Profile } from '@/context/BusinessContext';
 import { updateProfile } from '@/utils/data';
 import { Building2, MapPin, Users, Save, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { toast } from 'sonner';
+import { useNotification } from '@/components/notifications';
 
 export function BusinessProfile(): React.ReactElement {
+  const { addNotification } = useNotification();
   const { profile, setProfile, refetch } = useBusiness();
   const [formData, setFormData] = useState<Profile>(profile || {
     name: '',
@@ -60,13 +61,13 @@ export function BusinessProfile(): React.ReactElement {
         setProfile(formData);
         // Refetch from database to ensure synchronization
         await refetch();
-        toast.success('Business profile updated successfully!');
+        addNotification('Business profile updated successfully!', 'success');
       } else {
         throw new Error('Failed to update profile');
       }
     } catch (error) {
       console.error('Error updating business profile:', error);
-      toast.error('Failed to save business profile.');
+      addNotification('Failed to save business profile.', 'error');
     } finally {
       setIsSaving(false);
     }

@@ -18,7 +18,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
+import { useNotification } from '@/components/notifications';
 import { format, parseISO } from 'date-fns';
 import { 
   fetchActivityLogs, 
@@ -51,6 +51,7 @@ const PLATFORMS = [
 ];
 
 export default function HistoryPage(): React.ReactElement {
+  const { addNotification } = useNotification();
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [stats, setStats] = useState<ActivityStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -83,7 +84,7 @@ export default function HistoryPage(): React.ReactElement {
       setTotal(result.total);
     } catch (error) {
       console.error('Error loading activity logs:', error);
-      toast.error('Failed to load activity history');
+      addNotification('Failed to load activity history', 'error');
     } finally {
       setLoading(false);
     }
@@ -126,12 +127,12 @@ export default function HistoryPage(): React.ReactElement {
     
     try {
       await deleteActivityLog(logId);
-      toast.success('Log entry deleted');
+      addNotification('Log entry deleted', 'success');
       loadLogs();
       loadStats();
     } catch (error) {
       console.error('Error deleting log:', error);
-      toast.error('Failed to delete log entry');
+      addNotification('Failed to delete log entry', 'error');
     }
   };
 
@@ -140,12 +141,12 @@ export default function HistoryPage(): React.ReactElement {
     
     try {
       await clearAllActivityLogs();
-      toast.success('All activity history cleared');
+      addNotification('All activity history cleared', 'success');
       loadLogs();
       loadStats();
     } catch (error) {
       console.error('Error clearing logs:', error);
-      toast.error('Failed to clear activity history');
+      addNotification('Failed to clear activity history', 'error');
     }
   };
 

@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { toast } from 'sonner'
+import { useNotification } from '@/components/notifications'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -18,6 +18,7 @@ interface CreateAccountFormProps {
 }
 
 export default function CreateAccountForm({ onSignup }: CreateAccountFormProps): React.ReactElement {
+  const { addNotification } = useNotification()
   const router = useRouter()
   const [formData, setFormData] = useState({
     name: '',
@@ -95,10 +96,10 @@ export default function CreateAccountForm({ onSignup }: CreateAccountFormProps):
 
       if (result.error) {
         setAlert({ type: 'error', message: result.error })
-        toast.error(result.error)
+        addNotification(result.error, 'error')
       } else if (result.success) {
         setAlert({ type: 'success', message: 'Account created successfully! Redirecting to login...' })
-        toast.success('Account created successfully!')
+        addNotification('Account created successfully!', 'success')
         setTimeout(() => {
           router.push('/login?message=Account created successfully. Please sign in.')
         }, 2000)
@@ -106,7 +107,7 @@ export default function CreateAccountForm({ onSignup }: CreateAccountFormProps):
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create account. Please try again.'
       setError(errorMessage)
-      toast.error(errorMessage)
+      addNotification(errorMessage, 'error')
     } finally {
       setLoading(false)
     }

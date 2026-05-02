@@ -1,26 +1,14 @@
 /**
  * Database operations for campaigns
  * These are helper functions for frontend to interact with campaign API
+ * 
+ * @deprecated Use @/lib/api/campaigns for new code
+ * This file is maintained for backward compatibility
  */
 
-export interface Campaign {
-  id: string;
-  user_id: string;
-  holiday_id: string;
-  content: {
-    instagram: string;
-    email: string;
-    hashtags: string[];
-  };
-  platforms: {
-    instagram: boolean;
-    facebook: boolean;
-  };
-  status: 'draft' | 'scheduled' | 'posted' | 'archived';
-  scheduled_date: string | null;
-  created_at: string;
-  updated_at: string;
-}
+// Re-export types from new location for backward compatibility
+export type { Campaign, CampaignStatus } from './types/campaign';
+import type { Campaign } from './types/campaign';
 
 /**
  * Fetch all campaigns for the current user

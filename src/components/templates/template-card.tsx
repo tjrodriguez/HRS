@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useState } from "react";
 import { Heart, Copy, Trash2, Sparkles, Tag, Hash } from "lucide-react";
-import { toast } from "sonner";
+import { useNotification } from "@/components/notifications";
 import { Template } from "@/utils/data";
 import { toggleFavoriteTemplate, incrementTemplateUsage, deleteTemplate } from "@/lib/templates";
 
@@ -14,6 +14,7 @@ interface TemplateCardProps {
 }
 
 export function TemplateCard({ template, onUpdate, onUse }: TemplateCardProps): React.ReactElement {
+  const { addNotification } = useNotification();
   const [isFavorite, setIsFavorite] = useState(template.is_favorite);
   const [isDeleting, setIsDeleting] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -23,11 +24,11 @@ export function TemplateCard({ template, onUpdate, onUse }: TemplateCardProps): 
     setIsFavorite(newValue);
     const success = await toggleFavoriteTemplate(template.id, newValue);
     if (success) {
-      toast.success(newValue ? "Added to favorites" : "Removed from favorites");
+      addNotification(newValue ? "Added to favorites" : "Removed from favorites", "success");
       onUpdate();
     } else {
       setIsFavorite(!newValue);
-      toast.error("Failed to update favorite");
+      addNotification("Failed to update favorite", "error");
     }
   };
 
@@ -37,7 +38,7 @@ export function TemplateCard({ template, onUpdate, onUse }: TemplateCardProps): 
       .join("\n\n");
     await navigator.clipboard.writeText(fullText);
     setCopied(true);
-    toast.success("Copied to clipboard!");
+    addNotification("Copied to clipboard!", "success");
     await incrementTemplateUsage(template.id, template.usage_count);
     setTimeout(() => setCopied(false), 2000);
     onUpdate();
@@ -47,7 +48,7 @@ export function TemplateCard({ template, onUpdate, onUse }: TemplateCardProps): 
     if (onUse) {
       onUse(template.content);
       incrementTemplateUsage(template.id, template.usage_count);
-      toast.success("Template applied!");
+      addNotification("Template applied!", "success");
       onUpdate();
     }
   };
@@ -57,10 +58,10 @@ export function TemplateCard({ template, onUpdate, onUse }: TemplateCardProps): 
     setIsDeleting(true);
     const success = await deleteTemplate(template.id);
     if (success) {
-      toast.success("Template deleted");
+      addNotification("Template deleted", "success");
       onUpdate();
     } else {
-      toast.error("Failed to delete template");
+      addNotification("Failed to delete template", "error");
     }
     setIsDeleting(false);
   };

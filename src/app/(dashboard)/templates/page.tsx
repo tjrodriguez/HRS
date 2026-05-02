@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { BookOpen, RefreshCw } from "lucide-react";
-import { toast } from "sonner";
+import { useNotification } from "@/components/notifications";
 import { Template } from "@/utils/data";
 import { TemplateLibrary } from "@/components/templates/template-library";
 
 export default function TemplatesPage() {
+  const { addNotification } = useNotification();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -21,11 +22,11 @@ export default function TemplatesPage() {
       setTemplates(data.templates || []);
     } catch (error) {
       console.error("Error loading templates:", error);
-      toast.error("Failed to load templates");
+      addNotification("Failed to load templates", "error");
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [addNotification]);
 
   useEffect(() => {
     loadTemplates();

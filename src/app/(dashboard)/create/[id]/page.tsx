@@ -3,16 +3,17 @@ import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useBusiness, Holiday, Profile } from '@/context/BusinessContext';
-import { Sparkles, Copy, AlertCircle, Loader2, CalendarDays, Check, TrendingUp, Maximize2, X, BookOpen, Share2 } from 'lucide-react';
+import { Sparkles, Copy, AlertCircle, Loader2, CalendarDays, Check, BookOpen, Share2, ImageIcon, ArrowLeft, Smartphone, Monitor, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
+import { useNotification } from '@/components/notifications';
 import { parseISO, format } from 'date-fns';
 import { createCampaign, scheduleCampaign, updateCampaign, Campaign } from '@/lib/campaigns';
 import { createTemplate, generateTemplateName } from '@/lib/templates';
-import { fetchSocialAccounts, postToSocial, getConnectedPlatforms } from '@/lib/social';
-import { logCaptionGenerated, logPostSimulated, logCampaignScheduled, logTemplateSaved } from '@/lib/activity';
+import { logCaptionGenerated, logCampaignScheduled, logTemplateSaved, logPostSimulated } from '@/lib/activity';
+import { ImageUpload } from '@/components/post/ImageUpload';
+import { InstagramSimulator, FacebookSimulator } from '@/components/simulator';
 
 // Social media SVG components
 const InstagramIcon = ({ className }: { className?: string }) => (
@@ -24,6 +25,7 @@ const FacebookIcon = ({ className }: { className?: string }) => (
 );
 
 export default function CreatePage(): React.ReactElement {
+  const { addNotification } = useNotification();
   const params = useParams();
   const router = useRouter();
   const holidayId = params.id as string;
@@ -31,24 +33,28 @@ export default function CreatePage(): React.ReactElement {
   
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
-  const [fullscreenPreview, setFullscreenPreview] = useState(false);
   const [editingCaption, setEditingCaption] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [posting, setPosting] = useState(false);
   const [campaignId, setCampaignId] = useState<string | null>(null);
-  const [connectedPlatforms, setConnectedPlatforms] = useState({
-    instagram: false,
-    facebook: false,
-  });
+  const [previewMode, setPreviewMode] = useState(false);
+  const [previewPlatform, setPreviewPlatform] = useState<'instagram' | 'facebook'>('instagram');
+  const [previewViewMode, setPreviewViewMode] = useState<'mobile' | 'desktop'>('mobile');
   const [platforms, setPlatforms] = useState({
     instagram: true,
     facebook: false,
   });
-  const [content, setContent] = useState({
+  const [content, setContent] = useState<{
+    instagram: string;
+    email: string;
+    hashtags: string[];
+    imageUrl: string | null;
+  }>({
     instagram: '',
     email: '',
     hashtags: [] as string[],
+    imageUrl: null,
   });
   const [engagement, setEngagement] = useState({
     reach: { min: 3500, max: 5000 },
@@ -149,19 +155,6 @@ export default function CreatePage(): React.ReactElement {
 
   const holiday = holidays.find(h => String(h.id) === holidayId);
 
-  // Load connected social accounts
-  useEffect(() => {
-    const loadSocialAccounts = async () => {
-      try {
-        const accounts = await fetchSocialAccounts();
-        setConnectedPlatforms(getConnectedPlatforms(accounts));
-      } catch (error) {
-        console.error('Error loading social accounts:', error);
-      }
-    };
-
-    loadSocialAccounts();
-  }, []);
 
   // Helper functions for fallback content generation
   const generateFallbackCaption = (holiday: Holiday, profile: Profile) => {
@@ -175,12 +168,58 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
 🔗 Link in bio for more details`;
   };
 
+  // Restore state from localStorage when returning from simulator
+  const hasRestoredRef = useRef(false);
+  useEffect(() => {
+    if (hasRestoredRef.current) return;
+    const savedState = localStorage.getItem(`create-page-state-${holidayId}`);
+    if (savedState) {
+      try {
+        const parsed = JSON.parse(savedState);
+        console.log('[CreatePage] Found saved state:', { hasImage: !!parsed.content?.imageUrl, hasCaption: !!parsed.content?.instagram, timestamp: parsed.timestamp });
+        // Only restore if saved within last 30 minutes
+        if (parsed.timestamp && Date.now() - parsed.timestamp < 30 * 60 * 1000) {
+          // Restore if we have any content (caption, image, or hashtags)
+          if (parsed.content && (parsed.content.instagram || parsed.content.imageUrl || parsed.content.hashtags?.length > 0)) {
+            console.log('[CreatePage] Restoring content with imageUrl:', parsed.content.imageUrl);
+            setContent(parsed.content);
+          }
+          if (parsed.platforms) {
+            setPlatforms(parsed.platforms);
+          }
+          if (parsed.campaignId) {
+            setCampaignId(parsed.campaignId);
+          }
+          // Mark as generated to prevent auto-generation BEFORE clearing storage
+          hasRestoredRef.current = true;
+          setGenerated(true);
+          // Clear the saved state after restoration
+          localStorage.removeItem(`create-page-state-${holidayId}`);
+          console.log('[CreatePage] State restored successfully');
+        } else {
+          // Clear stale state
+          localStorage.removeItem(`create-page-state-${holidayId}`);
+        }
+      } catch (e) {
+        console.error('Failed to restore state:', e);
+        localStorage.removeItem(`create-page-state-${holidayId}`);
+      }
+    }
+  }, [holidayId]);
+
   useEffect(() => {
     if (!holiday || !profile || generated || loading) {
       return;
     }
 
     if (hasAutoGeneratedRef.current === holidayId) {
+      return;
+    }
+
+    // Check if there's saved state to restore (returning from simulator)
+    const savedState = localStorage.getItem(`create-page-state-${holidayId}`);
+    if (savedState) {
+      // Don't auto-generate if we have saved state to restore
       return;
     }
 
@@ -231,10 +270,11 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
             instagram: generateFallbackCaption(holiday, profile),
             email: `Subject: 🎉 Celebrate ${holiday.name} with ${profile.name}!\n\nDear Valued ${profile.targetAudience},\n\nThis ${holiday.name}, we're excited to invite you to celebrate with us at ${profile.name}!\n\nWe've curated special ${holiday.name} experiences and exclusive offers just for our community. Whether you're celebrating with friends, family, or treating yourself, we have something special waiting for you.\n\nVisit us and discover why your neighbors love us. We look forward to making your ${holiday.name} memorable!\n\nWarm regards,\n${profile.name} Team\n📍 ${profile.location || 'Our Location'}`,
             hashtags: defaultHashtags,
+            imageUrl: null,
           });
           setGenerated(true);
           setGenerationNotice('Groq token limit reached. Showing a fallback draft.');
-          toast.info('Using template content. Connect your Groq API for AI-powered content.');
+          addNotification('Using template content. Connect your Groq API for AI-powered content.', 'info');
           return;
         }
         
@@ -255,23 +295,19 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
           instagram: newCaptions[0],
           email: data.email || `Subject: 🎉 ${holiday.name} Special Offers at ${profile.name}!`,
           hashtags: defaultHashtags,
+          imageUrl: null,
         });
         setCaptionHistory(prev => [...prev, newCaptions[0]].slice(-10));
         
-        // Set AI-generated engagement metrics and tips with validation
-        if (data.engagement && data.engagement.reach?.min != null) {
-          setEngagement(data.engagement);
-        }
-        if (data.platformTips && data.platformTips.instagram) {
-          setPlatformTips(data.platformTips);
-        }
+        // AI-generated engagement metrics and tips received but not displayed
+        // (Predicted Engagement feature removed)
         
         if (data.rateLimited) {
           setGenerationNotice('Groq token limit reached. Showing a fallback draft.');
-          toast.warning('API token limit reached. Generating template content instead.');
+          addNotification('API token limit reached. Generating template content instead.', 'warning');
         } else if (data.isFallback) {
           setGenerationNotice(null);
-          toast.info('Using template content. Connect your Groq API for AI-powered content.');
+          addNotification('Using template content. Connect your Groq API for AI-powered content.', 'info');
         } else {
           setGenerationNotice(null);
         }
@@ -307,6 +343,7 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
                   instagram: data.instagram || generateFallbackCaption(holiday, profile),
                   email: data.email || `Subject: 🎉 ${holiday.name} Special Offers at ${profile.name}!`,
                   hashtags: defaultHashtags,
+                  imageUrl: null,
                 },
               });
             }
@@ -322,6 +359,7 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
                 instagram: data.instagram || generateFallbackCaption(holiday, profile),
                 email: data.email || `Subject: 🎉 ${holiday.name} Special Offers at ${profile.name}!`,
                 hashtags: defaultHashtags,
+                imageUrl: null,
               },
               platforms,
               null
@@ -349,10 +387,11 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
           instagram: generateFallbackCaption(holiday, profile),
           email: `Subject: 🎉 Celebrate ${holiday.name} with ${profile.name}!\n\nDear Valued ${profile.targetAudience},\n\nThis ${holiday.name}, we're excited to invite you to celebrate with us at ${profile.name}!\n\nWe've curated special ${holiday.name} experiences and exclusive offers just for our community. Whether you're celebrating with friends, family, or treating yourself, we have something special waiting for you.\n\nVisit us and discover why your neighbors love us. We look forward to making your ${holiday.name} memorable!\n\nWarm regards,\n${profile.name} Team\n📍 ${profile.location || 'Our Location'}`,
           hashtags: defaultHashtags,
+          imageUrl: null,
         });
         setGenerated(true);
         setGenerationNotice('Groq token limit reached. Showing a fallback draft.');
-        toast.info('Using template content. Connect your Groq API for AI-powered content.');
+        addNotification('Using template content. Connect your Groq API for AI-powered content.', 'info');
       } finally {
         generationInFlightRef.current = false;
         setLoading(false);
@@ -360,7 +399,7 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
     };
 
     generateContent();
-  }, [holiday, profile, holidayId, generated, loading, platforms]);
+  }, [holiday, profile, holidayId, generated, loading, platforms, addNotification]);
 
   const handleRegenerateCaption = async () => {
   if (!holiday || !profile) return;
@@ -377,7 +416,7 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
     if (nextCaptions.length > 0) {
       setContent((prev) => ({ ...prev, instagram: nextCaptions[0] }));
       setCaptionHistory(prev => [...prev, nextCaptions[0]].slice(-10));
-      toast.success('New caption generated!');
+      addNotification('New caption generated!', 'success');
       
       // Log caption regeneration
       try {
@@ -391,11 +430,12 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
         );
       } catch (logError) {
         console.error('Failed to log caption regeneration:', logError);
+        addNotification(logError instanceof Error ? logError.message : 'Failed to log caption regeneration', 'error');
       }
     }
   } catch (error) {
     console.error('Failed to regenerate caption:', error);
-    toast.error(error instanceof Error ? error.message : 'Failed to regenerate caption');
+    addNotification(error instanceof Error ? error.message : 'Failed to regenerate caption', 'error');
   } finally {
     setStreamingCaption('');
     generationInFlightRef.current = false; // Reset the ref here
@@ -412,12 +452,12 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
     navigator.clipboard.writeText(fullText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    toast.success('Copied to clipboard!');
+    addNotification('Copied to clipboard!', 'success');
   };
 
   const handleSaveTemplate = async () => {
     if (!content.instagram) {
-      toast.error('No content to save as template');
+      addNotification('No content to save as template', 'error');
       return;
     }
 
@@ -441,7 +481,7 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
       });
 
       if (result) {
-        toast.success('Template saved to Content Library!');
+        addNotification('Template saved to Content Library!', 'success');
         
         // Log template save
         try {
@@ -454,11 +494,11 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
           console.error('Failed to log template save:', logError);
         }
       } else {
-        toast.error('Failed to save template');
+        addNotification('Failed to save template', 'error');
       }
     } catch (error) {
       console.error('Error saving template:', error);
-      toast.error('Failed to save template');
+      addNotification('Failed to save template', 'error');
     } finally {
       setSavingTemplate(false);
     }
@@ -479,10 +519,10 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
         await updateCampaign(campaignId, {
           content,
         });
-        toast.success('Caption saved!');
+        addNotification('Caption saved!', 'success');
       } catch (error) {
         console.error('Error saving caption:', error);
-        toast.error('Failed to save caption');
+        addNotification('Failed to save caption', 'error');
       }
     }
   };
@@ -519,14 +559,14 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
         );
         cId = campaign.id;
         setCampaignId(cId);
-        toast.success('Campaign created!');
+        addNotification('Campaign created!', 'success');
       } else {
         // Update existing campaign with latest content
         await updateCampaign(cId, {
           content,
           platforms,
         });
-        toast.success('Campaign updated!');
+        addNotification('Campaign updated!', 'success');
       }
 
       // Schedule the campaign
@@ -536,7 +576,7 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
         platforms
       );
 
-      toast.success('Campaign scheduled successfully!');
+      addNotification('Campaign scheduled successfully!', 'success');
       
       // Log campaign scheduling
       try {
@@ -561,9 +601,54 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
       }, 1500);
     } catch (error) {
       console.error('Error scheduling campaign:', error);
-      toast.error('Failed to schedule campaign');
+      addNotification('Failed to schedule campaign', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePreviewBack = () => {
+    setPreviewMode(false);
+  };
+
+  const handleConfirmSimulation = async () => {
+    if (!campaignId) {
+      addNotification('No campaign to post', 'error');
+      return;
+    }
+
+    setPosting(true);
+
+    try {
+      // Simulate posting delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Generate simulated post ID
+      const postId = `${previewPlatform}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+      // Log the simulation
+      await logPostSimulated(
+        [previewPlatform],
+        content.instagram,
+        content.hashtags,
+        holidayId,
+        holiday?.name || '',
+        campaignId,
+        { success: true, platform: previewPlatform, postId },
+        { [previewPlatform]: postId }
+      );
+
+      addNotification(`Simulated post to ${previewPlatform === 'instagram' ? 'Instagram' : 'Facebook'}!`, 'success');
+
+      // Exit preview mode and redirect to dashboard
+      setTimeout(() => {
+        router.push('/');
+      }, 1000);
+    } catch (error) {
+      console.error('Error during simulation:', error);
+      addNotification('Failed to complete simulation', 'error');
+    } finally {
+      setPosting(false);
     }
   };
 
@@ -575,29 +660,18 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
       .map(([name]) => name as 'instagram' | 'facebook');
 
     if (selectedPlatforms.length === 0) {
-      toast.error('Please select at least one platform');
+      addNotification('Please select at least one platform', 'error');
       return;
     }
 
-    // Check if accounts are connected for selected platforms
-    const availablePlatforms = selectedPlatforms.filter(p => connectedPlatforms[p]);
-
-    if (availablePlatforms.length === 0) {
-      toast.error('No connected accounts found. Please connect your social media accounts in Business Profile.');
-      router.push('/business');
-      return;
-    }
-
-    if (availablePlatforms.length < selectedPlatforms.length) {
-      const missing = selectedPlatforms.filter(p => !connectedPlatforms[p]);
-      toast.warning(`${missing.join(', ')} not connected. Posting to connected platforms only.`);
-    }
+    // For now, only support single platform simulation (first selected)
+    const platform = selectedPlatforms[0];
 
     setPosting(true);
     try {
       // First, ensure campaign exists
       let cId = campaignId;
-      
+
       if (!cId) {
         try {
           const campaigns = await fetch('/api/campaigns').then(r => r.json()).then(data => data.campaigns);
@@ -610,7 +684,7 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
           // Continue if fetch fails
         }
       }
-      
+
       if (!cId) {
         const campaign = await createCampaign(
           holidayId,
@@ -624,53 +698,23 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
         await updateCampaign(cId, { content, platforms });
       }
 
-      // Post to social platforms
-      const result = await postToSocial(
-        cId,
-        availablePlatforms,
-        {
-          caption: content.instagram,
-          hashtags: content.hashtags,
-        }
-      );
+      // Save current state to localStorage for restoration when returning
+      const stateToSave = {
+        content,
+        platforms,
+        campaignId: cId,
+        holidayId,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem(`create-page-state-${holidayId}`, JSON.stringify(stateToSave));
 
-      if (result.success) {
-        const successPlatforms = result.results.filter(r => r.success).map(r => r.platform);
-        toast.success(
-          <div>
-            <strong>Simulation Complete!</strong>
-            <p className="text-sm">Simulated post to {successPlatforms.join(', ')}</p>
-            <p className="text-xs text-gray-500 mt-1">Demo mode - no actual posting occurred</p>
-          </div>
-        );
-        
-        // Log simulated post
-        try {
-          await logPostSimulated(
-            availablePlatforms,
-            content.instagram,
-            content.hashtags,
-            holidayId,
-            holiday?.name || '',
-            cId,
-            result.results,
-            result.platform_post_ids
-          );
-        } catch (logError) {
-          console.error('Failed to log post simulation:', logError);
-        }
-        
-        // Redirect to dashboard
-        setTimeout(() => {
-          router.push('/');
-        }, 1500);
-      } else {
-        const errors = result.results.filter(r => !r.success).map(r => `${r.platform}: ${r.error}`).join(', ');
-        toast.error(`Failed to post: ${errors}`);
-      }
+      // Switch to preview mode inline instead of navigating away
+      setPreviewPlatform(platform);
+      setPreviewMode(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (error) {
-      console.error('Error posting to social:', error);
-      toast.error('Failed to post to social media');
+      console.error('Error preparing simulation:', error);
+      addNotification('Failed to prepare simulation', 'error');
     } finally {
       setPosting(false);
     }
@@ -694,28 +738,182 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
 
   return (
     <div className="min-h-screen py-6 space-y-6">
-      {/* Header Banner */}
-      <div className="bg-primary rounded-2xl p-6 md:p-8 text-white relative overflow-hidden">
-        <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
-        <div className="relative z-10 flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-3">
-              <CalendarDays className="w-6 h-6" />
-              <h1 className="text-3xl md:text-4xl font-extrabold">{holiday.name}</h1>
-              <Badge variant="secondary" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
-                {format(parseISO(holiday.date), 'MMM dd, yyyy')}
-              </Badge>
+      {/* Preview Mode */}
+      {previewMode ? (
+        <div className="space-y-6">
+          {/* Preview Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                onClick={handlePreviewBack}
+                className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                <span className="hidden sm:inline">Back to Edit</span>
+              </Button>
+              <div>
+                <h2 className="text-xl font-semibold">Preview Your Post</h2>
+                <p className="text-sm text-muted-foreground">
+                  {previewPlatform === 'instagram' ? 'Instagram' : 'Facebook'} • {previewViewMode === 'mobile' ? 'Mobile' : 'Web'}
+                </p>
+              </div>
             </div>
-            <p className="text-white/90 text-lg">{holiday.description}</p>
-          </div>
-          <Sparkles className="w-12 h-12 opacity-50" />
-        </div>
-      </div>
 
-      {/* Main Content Grid */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Left Column - Caption & Platforms */}
-        <div className="lg:col-span-2 space-y-6">
+            <div className="flex items-center gap-3">
+              {/* View Mode Toggle */}
+              <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+                <button
+                  onClick={() => setPreviewViewMode('mobile')}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                    previewViewMode === 'mobile'
+                      ? 'bg-background shadow-sm'
+                      : 'text-muted-foreground hover:bg-background/50'
+                  }`}
+                >
+                  <Smartphone className="w-4 h-4" />
+                  Mobile
+                </button>
+                <button
+                  onClick={() => setPreviewViewMode('desktop')}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                    previewViewMode === 'desktop'
+                      ? 'bg-background shadow-sm'
+                      : 'text-muted-foreground hover:bg-background/50'
+                  }`}
+                >
+                  <Monitor className="w-4 h-4" />
+                  Web
+                </button>
+              </div>
+
+              {/* Platform Toggle */}
+              <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+                <button
+                  onClick={() => setPreviewPlatform('instagram')}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                    previewPlatform === 'instagram'
+                      ? 'bg-background shadow-sm'
+                      : 'text-muted-foreground hover:bg-background/50'
+                  }`}
+                >
+                  <InstagramIcon className="w-4 h-4" />
+                  Instagram
+                </button>
+                <button
+                  onClick={() => setPreviewPlatform('facebook')}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                    previewPlatform === 'facebook'
+                      ? 'bg-background shadow-sm'
+                      : 'text-muted-foreground hover:bg-background/50'
+                  }`}
+                >
+                  <FacebookIcon className="w-4 h-4" />
+                  Facebook
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Preview Content */}
+          <div className="grid lg:grid-cols-[1fr,380px] gap-6">
+            {/* Simulator */}
+            <div className="flex justify-center">
+              <div className={`
+                overflow-hidden rounded-2xl shadow-xl transition-all duration-500
+                ${previewViewMode === 'mobile' ? 'w-[375px] max-w-full' : 'w-full max-w-6xl'}
+              `}>
+                {previewPlatform === 'instagram' ? (
+                  <InstagramSimulator
+                    caption={content.instagram}
+                    hashtags={content.hashtags}
+                    imageUrl={content.imageUrl}
+                    businessName={profile?.name || 'Your Business'}
+                    location={profile?.location || ''}
+                    viewMode={previewViewMode}
+                  />
+                ) : (
+                  <FacebookSimulator
+                    caption={content.instagram}
+                    hashtags={content.hashtags}
+                    imageUrl={content.imageUrl}
+                    businessName={profile?.name || 'Your Business'}
+                    location={profile?.location || ''}
+                    viewMode={previewViewMode}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Actions Panel */}
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Eye className="w-5 h-5" />
+                    Ready to Post?
+                  </CardTitle>
+                  <CardDescription>
+                    Review your post in the preview. Everything looks good?
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2 text-sm">
+                    <p><span className="font-medium">Platform:</span> {previewPlatform === 'instagram' ? 'Instagram' : 'Facebook'}</p>
+                    <p><span className="font-medium">Business:</span> {profile?.name}</p>
+                    <p><span className="font-medium">Image:</span> {content.imageUrl ? '✓ Uploaded' : '✗ None'}</p>
+                    <p><span className="font-medium">Hashtags:</span> {content.hashtags.length}</p>
+                  </div>
+
+                  <Button
+                    onClick={handleConfirmSimulation}
+                    disabled={posting}
+                    className={`w-full h-11 font-semibold ${
+                      previewPlatform === 'instagram'
+                        ? 'bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400'
+                        : 'bg-[#1877f2]'
+                    }`}
+                  >
+                    {posting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4 mr-2" />
+                        Confirm & Simulate
+                      </>
+                    )}
+                  </Button>
+
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Header Banner */}
+          <div className="bg-primary rounded-2xl p-6 md:p-8 text-white relative overflow-hidden">
+            <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
+            <div className="relative z-10 flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <CalendarDays className="w-6 h-6" />
+                  <h1 className="text-3xl md:text-4xl font-extrabold">{holiday.name}</h1>
+                  <Badge variant="secondary" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
+                    {format(parseISO(holiday.date), 'MMM dd, yyyy')}
+                  </Badge>
+                </div>
+                <p className="text-white/90 text-lg">{holiday.description}</p>
+              </div>
+              <Sparkles className="w-12 h-12 opacity-50" />
+            </div>
+          </div>
+
+      {/* Main Content - Full width matching header */}
+      <div className="space-y-6">
           {/* AI-Generated Caption Card */}
           <Card className="border-white/20 bg-card/60 backdrop-blur-xl">
             <CardHeader className="pb-4">
@@ -820,6 +1018,24 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
             </CardContent>
           </Card>
 
+          {/* Image Upload */}
+          <Card className="border-white/20 bg-card/60 backdrop-blur-xl">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-primary" />
+                Post Image
+              </CardTitle>
+              <CardDescription>Upload or generate an image for your post</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ImageUpload
+                holidayId={holidayId}
+                imageUrl={content.imageUrl}
+                onImageChange={(url) => setContent({ ...content, imageUrl: url })}
+              />
+            </CardContent>
+          </Card>
+
           {/* Select Platforms Card */}
           <Card className="border-white/20 bg-card/60 backdrop-blur-xl">
             <CardHeader>
@@ -852,33 +1068,36 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
 
           {/* Action Buttons */}
           <div className="space-y-3">
-            {/* Simulate Post Button - Show if at least one platform is connected */}
-            {(connectedPlatforms.instagram || connectedPlatforms.facebook) && (
+            {/* Primary: Preview Button - Show if at least one platform is selected */}
+            {(platforms.instagram || platforms.facebook) && (
               <Button 
                 onClick={handlePostNow}
                 disabled={posting}
-                className="w-full h-12 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-base font-semibold"
+                className="w-full h-14 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-base font-bold shadow-lg shadow-green-600/20"
               >
                 {posting ? (
                   <>
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Simulating...
+                    Preparing Preview...
                   </>
                 ) : (
                   <>
-                    <Share2 className="w-5 h-5 mr-2" />
-                    Simulate Post to {[
-                      connectedPlatforms.instagram && platforms.instagram && 'Instagram',
-                      connectedPlatforms.facebook && platforms.facebook && 'Facebook'
-                    ].filter(Boolean).join(' & ') || 'Connected Platforms'}
+                    <Eye className="w-5 h-5 mr-2" />
+                    Preview on {[
+                      platforms.instagram && 'Instagram',
+                      platforms.facebook && 'Facebook'
+                    ].filter(Boolean).join(' & ')}
                   </>
                 )}
               </Button>
             )}
+
+            {/* Secondary: Schedule Button */}
             <Button 
               onClick={handleSchedule}
               disabled={saving}
-              className="w-full h-12 bg-primary hover:bg-primary-dark text-base font-semibold"
+              variant="outline"
+              className="w-full h-12 text-base font-semibold border-2 hover:bg-primary/5"
             >
               {saving ? (
                 <>
@@ -892,364 +1111,9 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
                 </>
               )}
             </Button>
-            <Button 
-              variant="outline"
-              className="w-full h-12 text-base"
-              onClick={() => router.push('/holidays')}
-            >
-              Back to Calendar
-            </Button>
           </div>
-        </div>
-
-        {/* Right Column - Preview & Engagement */}
-        <div className="space-y-6">
-          {/* Post Preview */}
-          <Card className="border-white/20 bg-card/60 backdrop-blur-xl overflow-hidden">
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-lg">Post Preview</CardTitle>
-                <CardDescription>How your post will look</CardDescription>
-              </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setFullscreenPreview(true)}
-                className="text-primary hover:bg-primary/10"
-              >
-                <Maximize2 className="w-4 h-4" />
-              </Button>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="bg-slate-900 p-4 min-h-96 flex flex-col">
-                {getActivePlatform() === 'instagram' && (
-                  <>
-                    {/* Instagram Header */}
-                    <div className="flex items-center gap-3 pb-4 border-b border-white/10">
-                      <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold">
-                        {profile?.name?.charAt(0) || 'B'}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-white font-semibold text-sm">{profile?.name || 'Business'}</p>
-                        <p className="text-white/60 text-xs">{profile?.location || 'Location'}</p>
-                      </div>
-                      <p className="text-white/40 text-xs">...</p>
-                    </div>
-
-                    {/* Instagram Image */}
-                    <div className="my-4 bg-white/10 rounded-lg aspect-square flex items-center justify-center border border-white/20">
-                      <div className="text-center">
-                        <Sparkles className="w-12 h-12 text-white/30 mx-auto mb-2" />
-                        <p className="text-white/40 text-xs">Your Holiday Image</p>
-                      </div>
-                    </div>
-
-                    {/* Instagram Caption & Hashtags */}
-                    <div className="space-y-3">
-                      <p className="text-white text-sm leading-relaxed line-clamp-4">
-                        {content.instagram}
-                      </p>
-                      <div className="flex flex-wrap gap-1">
-                        {content.hashtags.slice(0, 3).map((tag) => (
-                          <span key={tag} className="text-primary text-xs">
-                            {tag}
-                          </span>
-                        ))}
-                        {content.hashtags.length > 3 && (
-                          <span className="text-white/40 text-xs">+{content.hashtags.length - 3} more</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Instagram Engagement Icons */}
-                    <div className="mt-4 flex gap-4 text-white/60 text-sm pt-3 border-t border-white/10">
-                      <span>♥️ Like</span>
-                      <span>💬 Comment</span>
-                      <span>↗️ Share</span>
-                    </div>
-                  </>
-                )}
-
-                {getActivePlatform() === 'facebook' && (
-                  <>
-                    {/* Facebook Header */}
-                    <div className="flex items-center gap-3 pb-3 border-b border-white/10">
-                      <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
-                        {profile?.name?.charAt(0) || 'B'}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-white font-semibold text-sm">{profile?.name || 'Business'}</p>
-                        <p className="text-white/60 text-xs">2 hours ago</p>
-                      </div>
-                    </div>
-
-                    {/* Facebook Caption (comes before image) */}
-                    <div className="py-3">
-                      <p className="text-white text-sm leading-relaxed line-clamp-3">
-                        {content.instagram}
-                      </p>
-                    </div>
-
-                    {/* Facebook Image */}
-                    <div className="my-3 bg-white/10 rounded-lg aspect-video flex items-center justify-center border border-white/20">
-                      <div className="text-center">
-                        <Sparkles className="w-12 h-12 text-white/30 mx-auto mb-2" />
-                        <p className="text-white/40 text-xs">Your Holiday Image</p>
-                      </div>
-                    </div>
-
-                    {/* Facebook Hashtags */}
-                    <div className="py-2 border-t border-white/10">
-                      <div className="flex flex-wrap gap-1">
-                        {content.hashtags.slice(0, 2).map((tag) => (
-                          <span key={tag} className="text-blue-400 text-xs">
-                            {tag}
-                          </span>
-                        ))}
-                        {content.hashtags.length > 2 && (
-                          <span className="text-white/40 text-xs">+{content.hashtags.length - 2} more</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Facebook Engagement Buttons */}
-                    <div className="mt-3 flex gap-4 text-white/60 text-xs pt-3 border-t border-white/10">
-                      <span className="flex-1 text-center cursor-pointer hover:text-blue-400">👍 Like</span>
-                      <span className="flex-1 text-center cursor-pointer hover:text-blue-400">💬 Comment</span>
-                      <span className="flex-1 text-center cursor-pointer hover:text-blue-400">↗️ Share</span>
-                    </div>
-                  </>
-                )}
-
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Predicted Engagement */}
-          <Card className="border-white/20 bg-card/60 backdrop-blur-xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-green-500" />
-                Predicted Engagement
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-background/60 rounded-lg p-3 border border-white/10">
-                  <p className="text-xs text-muted-foreground font-semibold mb-1">Expected Reach</p>
-                  <p className="text-lg font-bold text-foreground">{engagement.reach.min.toLocaleString()} - {engagement.reach.max.toLocaleString()}</p>
-                </div>
-                <div className="bg-background/60 rounded-lg p-3 border border-white/10">
-                  <p className="text-xs text-muted-foreground font-semibold mb-1">Estimated Likes</p>
-                  <p className="text-lg font-bold text-foreground">{engagement.likes.min} - {engagement.likes.max}</p>
-                </div>
-                <div className="bg-background/60 rounded-lg p-3 border border-white/10">
-                  <p className="text-xs text-muted-foreground font-semibold mb-1">Expected Comments</p>
-                  <p className="text-lg font-bold text-foreground">{engagement.comments.min} - {engagement.comments.max}</p>
-                </div>
-                <div className="bg-background/60 rounded-lg p-3 border border-white/10">
-                  <p className="text-xs text-muted-foreground font-semibold mb-1">Potential Shares</p>
-                  <p className="text-lg font-bold text-foreground">{engagement.shares.min} - {engagement.shares.max}</p>
-                </div>
-              </div>
-
-              <div className="bg-accent/10 border border-accent/30 rounded-lg p-4">
-                <p className="text-xs font-semibold text-accent mb-2">💡 Pro Tip</p>
-                <p className="text-xs text-accent/80 leading-relaxed">
-                  {platformTips[getActivePlatform() as keyof typeof platformTips]}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
-
-      {/* Full-Screen Preview Modal */}
-      {fullscreenPreview && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-background rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-white/20">
-            {/* Modal Header */}
-            <div className="sticky top-0 bg-muted/50 backdrop-blur-md border-b border-border p-6 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-foreground">Post Preview - Full View</h2>
-              <button
-                onClick={() => setFullscreenPreview(false)}
-                className="p-2 hover:bg-white/10 rounded-lg transition-all"
-              >
-                <X className="w-6 h-6 text-foreground" />
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="p-8">
-              {/* Social Media Post */}
-              <div className="bg-slate-900 rounded-xl overflow-hidden shadow-2xl max-w-md mx-auto">
-                {getActivePlatform() === 'instagram' && (
-                  <>
-                    {/* Instagram Header */}
-                    <div className="flex items-center gap-3 p-4 border-b border-white/10">
-                      <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center text-white text-sm font-bold">
-                        {profile?.name?.charAt(0) || 'B'}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-white font-semibold">{profile?.name || 'Business'}</p>
-                        <p className="text-white/60 text-sm">{profile?.location || 'Location'}</p>
-                      </div>
-                      <span className="text-white/40 text-xs">•••</span>
-                    </div>
-
-                    {/* Instagram Image */}
-                    <div className="bg-white/5 aspect-square flex items-center justify-center border-t border-b border-white/10">
-                      <div className="text-center">
-                        <Sparkles className="w-16 h-16 text-white/20 mx-auto mb-2" />
-                        <p className="text-white/40 text-sm">Your Holiday Image</p>
-                      </div>
-                    </div>
-
-                    {/* Instagram Caption & Hashtags */}
-                    <div className="p-4 border-t border-white/10">
-                      <p className="text-white text-sm leading-relaxed mb-3 whitespace-pre-wrap">
-                        {content.instagram}
-                      </p>
-                      <div className="flex flex-wrap gap-1">
-                        {content.hashtags.map((tag) => (
-                          <span key={tag} className="text-primary text-sm">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Instagram Like/Comment/Share */}
-                    <div className="p-4 border-t border-white/10 flex gap-6 text-white/60 text-sm">
-                      <button className="flex items-center gap-2 hover:text-white transition-colors">
-                        ❤️ Like
-                      </button>
-                      <button className="flex items-center gap-2 hover:text-white transition-colors">
-                        💬 Comment
-                      </button>
-                      <button className="flex items-center gap-2 hover:text-white transition-colors">
-                        ↗️ Share
-                      </button>
-                    </div>
-                  </>
-                )}
-
-                {getActivePlatform() === 'facebook' && (
-                  <>
-                    {/* Facebook Header */}
-                    <div className="flex items-center gap-3 p-4 border-b border-blue-900/50">
-                      <div className="h-12 w-12 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-bold">
-                        {profile?.name?.charAt(0) || 'B'}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-white font-semibold">{profile?.name || 'Business'}</p>
-                        <p className="text-white/60 text-xs">3 hours ago</p>
-                      </div>
-                    </div>
-
-                    {/* Facebook Text */}
-                    <div className="p-4 border-b border-white/10">
-                      <p className="text-white text-sm leading-relaxed whitespace-pre-wrap mb-3">
-                        {content.instagram}
-                      </p>
-                      <div className="flex flex-wrap gap-1">
-                        {content.hashtags.map((tag) => (
-                          <span key={tag} className="text-blue-400 text-sm">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Facebook Image */}
-                    <div className="bg-white/5 aspect-video flex items-center justify-center border-y border-white/10">
-                      <div className="text-center">
-                        <Sparkles className="w-16 h-16 text-white/20 mx-auto mb-2" />
-                        <p className="text-white/40 text-sm">Your Holiday Image</p>
-                      </div>
-                    </div>
-
-                    {/* Facebook Engagement */}
-                    <div className="p-4 border-t border-white/10 flex gap-3 text-white/60 text-sm">
-                      <button className="flex-1 flex items-center justify-center gap-2 py-2 rounded hover:bg-white/10 transition-colors">
-                        👍 Like
-                      </button>
-                      <button className="flex-1 flex items-center justify-center gap-2 py-2 rounded hover:bg-white/10 transition-colors">
-                        💬 Comment
-                      </button>
-                      <button className="flex-1 flex items-center justify-center gap-2 py-2 rounded hover:bg-white/10 transition-colors">
-                        ↗️ Share
-                      </button>
-                    </div>
-                  </>
-                )}
-
-              </div>
-
-              {/* Info Section */}
-              <div className="mt-8 grid md:grid-cols-2 gap-6">
-                {/* Engagement Metrics */}
-                <div className="space-y-3">
-                  <h3 className="text-lg font-semibold text-foreground mb-4">Predicted Engagement</h3>
-                  <div className="space-y-3">
-                    <div className="bg-background/50 rounded-lg p-4 border border-white/10">
-                      <p className="text-xs text-muted-foreground font-semibold mb-2">Expected Reach</p>
-                      <p className="text-2xl font-bold text-foreground">{engagement.reach.min.toLocaleString()} - {engagement.reach.max.toLocaleString()}</p>
-                    </div>
-                    <div className="bg-background/50 rounded-lg p-4 border border-white/10">
-                      <p className="text-xs text-muted-foreground font-semibold mb-2">Estimated Likes</p>
-                      <p className="text-2xl font-bold text-foreground">{engagement.likes.min} - {engagement.likes.max}</p>
-                    </div>
-                    <div className="bg-background/50 rounded-lg p-4 border border-white/10">
-                      <p className="text-xs text-muted-foreground font-semibold mb-2">Expected Comments</p>
-                      <p className="text-2xl font-bold text-foreground">{engagement.comments.min} - {engagement.comments.max}</p>
-                    </div>
-                    <div className="bg-background/50 rounded-lg p-4 border border-white/10">
-                      <p className="text-xs text-muted-foreground font-semibold mb-2">Potential Shares</p>
-                      <p className="text-2xl font-bold text-foreground">{engagement.shares.min} - {engagement.shares.max}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Content & Pro Tips */}
-                <div className="space-y-3">
-                  <h3 className="text-lg font-semibold text-foreground mb-4">Details</h3>
-                  
-                  <div className="bg-background/50 rounded-lg p-4 border border-white/10">
-                    <p className="text-xs text-muted-foreground font-semibold mb-2">Holiday</p>
-                    <p className="text-foreground font-medium">{holiday?.name}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{holiday?.date ? format(parseISO(holiday.date), 'EEEE, MMMM dd, yyyy') : 'Date not available'}</p>
-                  </div>
-
-                  <div className="bg-background/50 rounded-lg p-4 border border-white/10">
-                    <p className="text-sm font-semibold text-foreground mb-2">📱 Posting for: {getActivePlatform().charAt(0).toUpperCase() + getActivePlatform().slice(1)}</p>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {platformTips[getActivePlatform() as keyof typeof platformTips]}
-                    </p>
-                  </div>
-
-                  <div className="bg-accent/10 border border-accent/30 rounded-lg p-4">
-                    <p className="text-sm font-semibold text-accent mb-2">💡 AI-Generated Recommendations</p>
-                    <p className="text-sm text-accent/80 leading-relaxed">
-                      These engagement predictions and tips are AI-generated based on your holiday, business type, and target audience. Adjust your posting strategy based on your historical performance data.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Close Button */}
-              <div className="mt-8 flex gap-3">
-                <Button
-                  onClick={() => setFullscreenPreview(false)}
-                  className="flex-1 bg-primary hover:bg-primary-dark"
-                >
-                  Close Preview
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+    </>)}
     </div>
   );
 }

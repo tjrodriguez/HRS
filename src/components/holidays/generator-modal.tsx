@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Sparkles, CalendarDays, Megaphone, Loader2, Check, Copy } from "lucide-react"
-import { toast } from "sonner"
+import { Sparkles, Copy, Check, ChevronDown, ChevronUp, X, ArrowRight, ArrowLeft, CalendarDays, Megaphone, Loader2 } from 'lucide-react'
+import { useNotification } from "@/components/notifications"
 import { useGroqCaptionGenerator, normalizeCaption } from "@/hooks/use-groq-caption-generator"
 import { useBusiness } from "@/context/BusinessContext"
 
@@ -80,6 +80,7 @@ function PlatformSelector({ platforms, selected, onToggle }: { platforms: string
 
 // --- Main component ---------------------------------------------------
 export function CampaignGeneratorModal({ children }: { children: React.ReactElement }): React.ReactElement {
+  const { addNotification } = useNotification()
   // UI state
   const [open, setOpen] = useState(false)
 
@@ -145,7 +146,7 @@ export function CampaignGeneratorModal({ children }: { children: React.ReactElem
       const previousCaptions = isRegenerate ? [...generatedCaptionsHistory, generatedCaption || ''].filter(Boolean) : []
 
       if (!profile?.name || !profile?.type) {
-        toast.error('Please complete your business profile before generating captions.')
+        addNotification('Please complete your business profile before generating captions.', 'error')
         return
       }
 
@@ -177,7 +178,7 @@ export function CampaignGeneratorModal({ children }: { children: React.ReactElem
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to generate caption'
-      toast.error(message)
+      addNotification(message, 'error')
       if (!generatedCaption) setGeneratedCaption('Unable to generate a caption right now. Please try again.')
     }
   }
