@@ -2,7 +2,11 @@
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import type { Campaign } from '@/lib/types/campaign';
+
+export type CampaignPlatformSelection = {
+  instagram: boolean;
+  facebook: boolean;
+};
 
 // Custom platform icons since lucide-react doesn't have brand icons
 function InstagramIcon({ className }: { className?: string }) {
@@ -22,13 +26,13 @@ function FacebookIcon({ className }: { className?: string }) {
 }
 
 interface PlatformSelectorProps {
-  platforms: Campaign['platforms'];
-  onChange: (platforms: Campaign['platforms']) => void;
+  platforms: CampaignPlatformSelection;
+  onChange: (platforms: CampaignPlatformSelection) => void;
   disabled?: boolean;
 }
 
 export function PlatformSelector({ platforms, onChange, disabled }: PlatformSelectorProps) {
-  const togglePlatform = (platform: keyof Campaign['platforms']) => {
+  const togglePlatform = (platform: keyof CampaignPlatformSelection) => {
     if (disabled) return;
     onChange({
       ...platforms,
