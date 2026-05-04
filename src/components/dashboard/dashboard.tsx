@@ -2,7 +2,7 @@
 import * as React from 'react'
 import Link from 'next/link';
 import { useBusiness, Holiday, Campaign } from '@/context/BusinessContext';
-import { Calendar, Bell, Sparkles, Clock, ArrowRight, Zap, Target, ChevronLeft, ChevronRight, History, Plus, BookOpen, X } from 'lucide-react';
+import { Calendar, Bell, Sparkles, Clock, ArrowRight, Zap, Target, ChevronLeft, ChevronRight, History, Plus, BookOpen, X, CheckCircle2 } from 'lucide-react';
 import { format, parseISO, differenceInDays, addDays, startOfMonth, endOfMonth, startOfWeek, addMonths, eachDayOfInterval, isSameDay, isToday, getMonth, isSameMonth } from 'date-fns';
 import { useState, useMemo, useEffect } from 'react';
 import { fetchActivityLogs, ActivityLog, getActivityTypeDisplay, getActivityIcon } from '@/lib/activity';
@@ -20,10 +20,17 @@ interface DayPopoverProps {
 function DayPopover({ day, holidays: dayHolidays, campaigns: dayCampaigns, hasReminder, onClose }: DayPopoverProps): React.ReactElement {
   const router = useRouter();
   const isCurrentDay = isToday(day);
-  
+
   // Find holiday ID for create link (prefer first holiday)
   const holidayId = dayHolidays[0]?.id;
-  
+
+  const statusBadge = (status: Campaign['status']) => {
+    if (status === 'posted') {
+      return <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-100 text-green-700 text-[10px] font-semibold"><CheckCircle2 className="w-3 h-3" />Posted</span>;
+    }
+    return <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-accent/20 text-accent text-[10px] font-semibold"><Clock className="w-3 h-3" />Scheduled</span>;
+  };
+
   return (
     <div className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-2 w-56 bg-card rounded-lg shadow-xl border border-border p-3 animate-in fade-in zoom-in-95 duration-200">
       {/* Header */}
@@ -51,19 +58,24 @@ function DayPopover({ day, holidays: dayHolidays, campaigns: dayCampaigns, hasRe
           <div>
             <p className="text-[10px] font-semibold text-accent uppercase tracking-wider mb-1.5">Scheduled ({dayCampaigns.length})</p>
             <div className="space-y-1.5">
-              {dayCampaigns.slice(0, 2).map((campaign) => (
-                <div key={campaign.id} className="flex items-center gap-2 p-1.5 bg-accent/10 rounded">
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0" />
-                  <span className="text-xs font-medium text-foreground truncate flex-1">
-                    {campaign.holiday?.name || 'Post'}
-                  </span>
-                  <span className="text-[10px] font-normal text-muted-foreground uppercase">
-                    {Array.isArray(campaign.platforms) ? campaign.platforms.slice(0, 2).join(', ') : (typeof campaign.platforms === 'string' ? campaign.platforms : 'N/A')}
-                  </span>
+              {dayCampaigns.slice(0, 3).map((campaign) => (
+                <div key={campaign.id} className="flex flex-col gap-1 p-1.5 bg-accent/10 rounded">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0" />
+                    <span className="text-xs font-medium text-foreground truncate flex-1">
+                      {campaign.holiday?.name || 'Post'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 flex-wrap pl-3">
+                    {statusBadge(campaign.status)}
+                    {Array.isArray(campaign.platforms) && campaign.platforms.map((p) => (
+                      <span key={p} className="px-1 py-0.5 rounded bg-muted text-[10px] font-medium text-muted-foreground capitalize">{p}</span>
+                    ))}
+                  </div>
                 </div>
               ))}
-              {dayCampaigns.length > 2 && (
-                <p className="text-[10px] font-normal text-muted-foreground pl-1">+{dayCampaigns.length - 2} more</p>
+              {dayCampaigns.length > 3 && (
+                <p className="text-[10px] font-normal text-muted-foreground pl-1">+{dayCampaigns.length - 3} more</p>
               )}
             </div>
           </div>
@@ -247,27 +259,30 @@ export function Dashboard(): React.ReactElement {
     });
   };
 
-  // Map scheduled campaigns to dates for quick lookup
+  // Map scheduled/posted campaigns to dates for quick lookup
   const campaignsByDate = useMemo(() => {
     const map = new Map<string, Campaign[]>();
     campaigns.forEach((campaign) => {
-      if (campaign.scheduled_date) {
-        // Parse date-only string (yyyy-MM-dd) without timezone issues
-        // by manually extracting year, month, day
-        const [year, month, day] = campaign.scheduled_date.split('-').map(Number);
-        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      if (campaign.scheduled_date && (campaign.status === 'scheduled' || campaign.status === 'posted')) {
+        // scheduled_date from Supabase may be an ISO timestamp (e.g. 2026-02-14T00:00:00+00:00)
+        // or a plain date string. Extract the yyyy-MM-dd portion robustly.
+        const dateStr = campaign.scheduled_date.split('T')[0];
         if (!map.has(dateStr)) map.set(dateStr, [])
         map.get(dateStr)!.push(campaign)
       }
     })
-    // Debug: Log the campaignsByDate map
-    console.log('campaignsByDate:', Array.from(map.entries()));
+    console.log('campaignsByDate keys:', Array.from(map.keys()));
+    console.log('campaignsByDate entries:', Array.from(map.entries()).map(([k, v]) => [k, v.length]));
     return map
   }, [campaigns]);
 
   const getCampaignsForDay = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
-    return campaignsByDate.get(dateStr) || [];
+    const result = campaignsByDate.get(dateStr) || [];
+    if (result.length > 0) {
+      console.log('getCampaignsForDay match:', dateStr, result.length);
+    }
+    return result;
   };
 
   // Get urgent holidays (within 3 days)
@@ -405,7 +420,7 @@ export function Dashboard(): React.ReactElement {
                 // Styling: fade days outside current month
                 let dayClass = 'hover:bg-muted/50';
                 let textClass = isCurrentMonth ? 'text-foreground' : 'text-muted-foreground/50';
-                
+
                 if (isCurrentDay) {
                   dayClass = 'bg-primary text-white rounded-full';
                   textClass = 'text-white';
@@ -414,8 +429,11 @@ export function Dashboard(): React.ReactElement {
                 } else if (holidayNeedsReminder) {
                   // Holiday with active reminder gets subtle ring
                   dayClass += ' ring-2 ring-destructive/50 rounded-full';
+                } else if (hasScheduled) {
+                  // Days with scheduled posts get a visible accent tint
+                  dayClass += ' bg-accent/10';
                 }
-                
+
                 if (isSelected) {
                   dayClass += ' ring-2 ring-primary ring-offset-1 rounded-full';
                 }
@@ -439,7 +457,13 @@ export function Dashboard(): React.ReactElement {
                       {/* Indicators - larger and more visible */}
                       <div className="flex items-center gap-1 mt-0.5">
                         {hasScheduled && (
-                          <div className="w-2.5 h-2.5 rounded-full bg-accent border border-white/20" title={`${dayCampaigns.length} scheduled post(s)`} />
+                          dayCampaigns.length > 1 ? (
+                            <span className="min-w-[1.125rem] h-[1.125rem] flex items-center justify-center px-1 rounded-full bg-accent text-white text-[10px] font-bold border border-white/20" title={`${dayCampaigns.length} scheduled posts`}>
+                              {dayCampaigns.length}
+                            </span>
+                          ) : (
+                            <div className="w-2.5 h-2.5 rounded-full bg-accent border border-white/20" title={`1 scheduled post`} />
+                          )
                         )}
                         {hasHoliday && (
                           <div className={`w-2.5 h-2.5 rounded-full ${holidayNeedsReminder ? 'bg-destructive' : 'bg-primary'}`} title={holidayNeedsReminder ? 'Holiday with reminder' : 'Holiday'} />

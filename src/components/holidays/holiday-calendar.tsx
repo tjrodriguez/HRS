@@ -3,13 +3,13 @@
 import * as React from 'react'
 import Link from 'next/link';
 import { useBusiness, Holiday } from '@/context/BusinessContext';
-import { Calendar, Filter, Search, Sparkles } from 'lucide-react';
+import { Calendar, Filter, Search, Sparkles, CheckCircle2 } from 'lucide-react';
 
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { useState } from 'react';
 
 export function HolidayCalendar(): React.ReactElement {
-  const { holidays } = useBusiness();
+  const { holidays, completedHolidayIds } = useBusiness();
   const [selectedType, setSelectedType] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('upcoming');
   const [searchQuery, setSearchQuery] = useState('');
@@ -21,15 +21,18 @@ export function HolidayCalendar(): React.ReactElement {
       const matchesType = selectedType === 'all' || holiday.type === selectedType;
       const matchesSearch = holiday.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            (holiday.description || '').toLowerCase().includes(searchQuery.toLowerCase());
-      
+
       // Add status filter
       const daysUntil = differenceInDays(parseISO(holiday.date), today);
       const isPast = daysUntil < 0;
-      const matchesStatus = selectedStatus === 'all' || 
+      const matchesStatus = selectedStatus === 'all' ||
                            (selectedStatus === 'upcoming' && !isPast) ||
                            (selectedStatus === 'past' && isPast);
-      
-      return matchesType && matchesSearch && matchesStatus;
+
+      // Hide holidays that already have scheduled or posted campaigns
+      const isCompleted = completedHolidayIds.has(holiday.id);
+
+      return matchesType && matchesSearch && matchesStatus && !isCompleted;
     })
     .sort((a: Holiday, b: Holiday) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
 
@@ -212,11 +215,26 @@ export function HolidayCalendar(): React.ReactElement {
 
       {filteredHolidays.length === 0 && (
         <div className="rounded-3xl bg-card shadow-lg border border-border p-12 md:p-16 text-center">
-          <div className="w-20 h-20 bg-muted/20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg border border-white/10">
-            <Calendar className="w-10 h-10 text-muted-foreground/50" />
-          </div>
-          <h3 className="font-bold text-foreground mb-2 text-xl">No holidays found</h3>
-          <p className="text-muted-foreground font-medium">Try adjusting your filters or search query</p>
+          {holidays.length > 0 && holidays.every((h) => {
+            const daysUntil = differenceInDays(parseISO(h.date), today);
+            return daysUntil < 0 || completedHolidayIds.has(h.id);
+          }) ? (
+            <>
+              <div className="w-20 h-20 bg-green-50 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg border border-green-100">
+                <CheckCircle2 className="w-10 h-10 text-green-500" />
+              </div>
+              <h3 className="font-bold text-foreground mb-2 text-xl">You're all caught up!</h3>
+              <p className="text-muted-foreground font-medium">Every upcoming holiday has a scheduled post. Great work!</p>
+            </>
+          ) : (
+            <>
+              <div className="w-20 h-20 bg-muted/20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg border border-white/10">
+                <Calendar className="w-10 h-10 text-muted-foreground/50" />
+              </div>
+              <h3 className="font-bold text-foreground mb-2 text-xl">No holidays found</h3>
+              <p className="text-muted-foreground font-medium">Try adjusting your filters or search query</p>
+            </>
+          )}
         </div>
       )}
     </div>

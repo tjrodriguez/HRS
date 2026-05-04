@@ -45,7 +45,7 @@ export interface Campaign {
   holiday_id: string;
   content: string;
   platforms: string[];
-  status: "draft" | "scheduled" | "published" | "archived";
+  status: "draft" | "scheduled" | "posted" | "archived";
   scheduled_date?: string;
   created_at: string;
   updated_at: string;

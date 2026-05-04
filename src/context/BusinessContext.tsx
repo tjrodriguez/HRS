@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import React, { createContext, useContext, useState, ReactNode, useEffect, useMemo } from "react";
 import { fetchHolidays, fetchProfile, fetchEngagementData, fetchCampaigns, fetchCampaignAnalytics, fetchTemplates, Holiday as DbHoliday, EngagementData as DbEngagementData, Campaign as DbCampaign } from "@/utils/data";
 
 /**
@@ -44,7 +44,7 @@ export interface Campaign {
   holiday_id: string;
   content: string;
   platforms: string[];
-  status: "draft" | "scheduled" | "published" | "archived";
+  status: "draft" | "scheduled" | "posted" | "archived";
   scheduled_date?: string;
   created_at: string;
   updated_at: string;
@@ -103,6 +103,7 @@ interface BusinessContextType {
   setProfile: (p: Profile) => void;
   holidays: Holiday[];
   campaigns: Campaign[];
+  completedHolidayIds: Set<string>;
   campaignAnalytics: CampaignAnalytics[];
   engagementData: EngagementMetrics[];
   templates: Template[];
@@ -159,6 +160,17 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Derive completed holidays from scheduled or posted campaigns
+  const completedHolidayIds = useMemo(() => {
+    const ids = new Set<string>();
+    campaigns.forEach((c) => {
+      if (c.status === 'scheduled' || c.status === 'posted') {
+        ids.add(c.holiday_id);
+      }
+    });
+    return ids;
+  }, [campaigns]);
 
   const loadData = async () => {
     try {
@@ -289,6 +301,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
         setProfile,
         holidays,
         campaigns,
+        completedHolidayIds,
         campaignAnalytics,
         engagementData,
         templates,
