@@ -11,7 +11,7 @@ import { useNotification } from '@/components/notifications';
 import { parseISO, format } from 'date-fns';
 import { createCampaign, scheduleCampaign, updateCampaign, Campaign } from '@/lib/campaigns';
 import { createTemplate, generateTemplateName } from '@/lib/templates';
-import { logCaptionGenerated, logCampaignScheduled, logTemplateSaved, logPostSimulated } from '@/lib/activity';
+import { logCaptionGenerated, logCampaignScheduled, logTemplateSaved } from '@/lib/activity';
 import { ImageUpload } from '@/components/post/ImageUpload';
 import { InstagramSimulator, FacebookSimulator } from '@/components/simulator';
 
@@ -29,7 +29,7 @@ export default function CreatePage(): React.ReactElement {
   const params = useParams();
   const router = useRouter();
   const holidayId = params.id as string;
-  const { holidays, profile } = useBusiness();
+  const { holidays, profile, refetch } = useBusiness();
   
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
@@ -105,7 +105,8 @@ export default function CreatePage(): React.ReactElement {
         holidayName: holiday?.name,
         businessName: profile?.name,
         businessType: profile?.type || 'Business',
-        businessNiche: profile?.description || profile?.type || 'General',
+        businessNiche: profile?.niche || profile?.type || 'General',
+        businessDescription: profile?.description || '',
         tone: profile?.tone || 'Friendly',
         targetAudience: profile?.targetAudience || 'Customers',
         platform: getActivePlatform(),
@@ -369,6 +370,9 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
 
           // If no existing campaign, create a new one
           if (!cId) {
+            const selectedPlatformsArray = Object.entries(platforms)
+              .filter(([, enabled]) => enabled)
+              .map(([name]) => name);
             const campaign = await createCampaign(
               holidayId,
               {
@@ -377,7 +381,7 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
                 hashtags: defaultHashtags,
                 imageUrl: null,
               },
-              platforms,
+              selectedPlatformsArray,
               null
             );
             cId = campaign.id;
@@ -568,10 +572,13 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
       
       if (!cId) {
         // Create campaign if it doesn't exist
+        const selectedPlatformsArray = Object.entries(platforms)
+          .filter(([, enabled]) => enabled)
+          .map(([name]) => name);
         const campaign = await createCampaign(
           holidayId,
           content,
-          platforms,
+          selectedPlatformsArray,
           format(parseISO(holiday.date), 'yyyy-MM-dd')
         );
         cId = campaign.id;
@@ -579,18 +586,24 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
         addNotification('Campaign created!', 'success');
       } else {
         // Update existing campaign with latest content
+        const selectedPlatformsArray = Object.entries(platforms)
+          .filter(([, enabled]) => enabled)
+          .map(([name]) => name);
         await updateCampaign(cId, {
           content,
-          platforms,
+          platforms: selectedPlatformsArray,
         });
         addNotification('Campaign updated!', 'success');
       }
 
       // Schedule the campaign
+      const selectedPlatformsArray = Object.entries(platforms)
+        .filter(([, enabled]) => enabled)
+        .map(([name]) => name);
       await scheduleCampaign(
         cId,
         format(parseISO(holiday.date), 'yyyy-MM-dd'),
-        platforms
+        selectedPlatformsArray
       );
 
       addNotification('Campaign scheduled successfully!', 'success');
@@ -612,10 +625,11 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
         console.error('Failed to log campaign scheduling:', logError);
       }
       
-      // Redirect to dashboard after a short delay
+      // Refresh data and redirect to dashboard
+      await refetch();
       setTimeout(() => {
         router.push('/');
-      }, 1500);
+      }, 500);
     } catch (error) {
       console.error('Error scheduling campaign:', error);
       addNotification('Failed to schedule campaign', 'error');
@@ -626,47 +640,6 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
 
   const handlePreviewBack = () => {
     setPreviewMode(false);
-  };
-
-  const handleConfirmSimulation = async () => {
-    if (!campaignId) {
-      addNotification('No campaign to post', 'error');
-      return;
-    }
-
-    setPosting(true);
-
-    try {
-      // Simulate posting delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      // Generate simulated post ID
-      const postId = `${previewPlatform}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-
-      // Log the simulation
-      await logPostSimulated(
-        [previewPlatform],
-        content.instagram,
-        content.hashtags,
-        holidayId,
-        holiday?.name || '',
-        campaignId,
-        { success: true, platform: previewPlatform, postId },
-        { [previewPlatform]: postId }
-      );
-
-      addNotification(`Simulated post to ${previewPlatform === 'instagram' ? 'Instagram' : 'Facebook'}!`, 'success');
-
-      // Exit preview mode and redirect to dashboard
-      setTimeout(() => {
-        router.push('/');
-      }, 1000);
-    } catch (error) {
-      console.error('Error during simulation:', error);
-      addNotification('Failed to complete simulation', 'error');
-    } finally {
-      setPosting(false);
-    }
   };
 
   const handlePostNow = async () => {
@@ -681,7 +654,7 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
       return;
     }
 
-    // For now, only support single platform simulation (first selected)
+    // Preview first selected platform
     const platform = selectedPlatforms[0];
 
     setPosting(true);
@@ -703,16 +676,22 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
       }
 
       if (!cId) {
+        const selectedPlatformsArray = Object.entries(platforms)
+          .filter(([, enabled]) => enabled)
+          .map(([name]) => name);
         const campaign = await createCampaign(
           holidayId,
           content,
-          platforms,
+          selectedPlatformsArray,
           null
         );
         cId = campaign.id;
         setCampaignId(cId);
       } else {
-        await updateCampaign(cId, { content, platforms });
+        const selectedPlatformsArray = Object.entries(platforms)
+          .filter(([, enabled]) => enabled)
+          .map(([name]) => name);
+        await updateCampaign(cId, { content, platforms: selectedPlatformsArray });
       }
 
       // Save current state to localStorage for restoration when returning
@@ -730,8 +709,8 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
       setPreviewMode(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (error) {
-      console.error('Error preparing simulation:', error);
-      addNotification('Failed to prepare simulation', 'error');
+      console.error('Error preparing preview:', error);
+      addNotification('Failed to prepare preview', 'error');
     } finally {
       setPosting(false);
     }
@@ -867,11 +846,11 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Eye className="w-5 h-5" />
-                    Ready to Post?
+                    <CalendarDays className="w-5 h-5" />
+                    Ready to Schedule?
                   </CardTitle>
                   <CardDescription>
-                    Review your post in the preview. Everything looks good?
+                    Review your post in the preview, then schedule it for {format(parseISO(holiday.date), 'MMM dd, yyyy')}.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -883,23 +862,23 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
                   </div>
 
                   <Button
-                    onClick={handleConfirmSimulation}
-                    disabled={posting}
+                    onClick={handleSchedule}
+                    disabled={saving}
                     className={`w-full h-11 font-semibold ${
                       previewPlatform === 'instagram'
                         ? 'bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400'
                         : 'bg-[#1877f2]'
                     }`}
                   >
-                    {posting ? (
+                    {saving ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Processing...
+                        Scheduling...
                       </>
                     ) : (
                       <>
-                        <Check className="w-4 h-4 mr-2" />
-                        Confirm & Simulate
+                        <CalendarDays className="w-4 h-4 mr-2" />
+                        Schedule Post
                       </>
                     )}
                   </Button>
@@ -1108,26 +1087,6 @@ Whether you're celebrating with friends, family, or your loved ones, we've got s
                 )}
               </Button>
             )}
-
-            {/* Secondary: Schedule Button */}
-            <Button 
-              onClick={handleSchedule}
-              disabled={saving}
-              variant="outline"
-              className="w-full h-12 text-base font-semibold border-2 hover:bg-primary/5"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Scheduling...
-                </>
-              ) : (
-                <>
-                  <CalendarDays className="w-5 h-5 mr-2" />
-                  Schedule for {format(parseISO(holiday.date), 'MMM dd')}
-                </>
-              )}
-            </Button>
           </div>
       </div>
     </>)}

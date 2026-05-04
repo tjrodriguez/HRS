@@ -16,6 +16,15 @@ export interface Profile {
   location?: string;
   target_audience?: string;
   social_platforms: string[];
+  // Contact info fields
+  website_url?: string;
+  phone?: string;
+  contact_email?: string;
+  business_hours?: Record<string, string>;
+  // Brand customization fields
+  brand_colors?: string[];
+  brand_voice?: string;
+  logo_url?: string;
   created_at: string;
   updated_at: string;
 }
@@ -470,7 +479,7 @@ export async function updateProfile(
   const { data, error } = await supabase
     .from("profiles")
     .upsert({
-      id: user.id, // Assuming id is the primary key matched with auth.users
+      id: user.id,
       name: profileData.name,
       niche: profileData.niche,
       tone: profileData.tone,
@@ -479,6 +488,15 @@ export async function updateProfile(
       location: profileData.location,
       target_audience: profileData.target_audience,
       social_platforms: profileData.social_platforms,
+      // Contact info fields
+      website_url: profileData.website_url,
+      phone: profileData.phone,
+      contact_email: profileData.contact_email,
+      business_hours: profileData.business_hours,
+      // Brand customization fields
+      brand_colors: profileData.brand_colors,
+      brand_voice: profileData.brand_voice,
+      logo_url: profileData.logo_url,
       updated_at: new Date().toISOString(),
     })
     .select()

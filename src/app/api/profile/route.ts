@@ -57,17 +57,43 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, type, location, description, targetAudience } = body;
+    const {
+      name,
+      type,
+      location,
+      description,
+      targetAudience,
+      niche,
+      tone,
+      socialPlatforms,
+      websiteUrl,
+      phone,
+      contactEmail,
+      businessHours,
+      brandColors,
+      brandVoice,
+      logoUrl,
+    } = body;
 
-    // Update profile
+    // Update profile with all fields (including new enhanced fields)
     const { data: profile, error } = await supabase
       .from('profiles')
       .update({
-        ...(name && { name }),
-        ...(type && { type }),
-        ...(location && { location }),
-        ...(description && { description }),
-        ...(targetAudience && { target_audience: targetAudience }),
+        ...(name !== undefined && { name }),
+        ...(type !== undefined && { type }),
+        ...(location !== undefined && { location }),
+        ...(description !== undefined && { description }),
+        ...(targetAudience !== undefined && { target_audience: targetAudience }),
+        ...(niche !== undefined && { niche }),
+        ...(tone !== undefined && { tone }),
+        ...(socialPlatforms !== undefined && { social_platforms: socialPlatforms }),
+        ...(websiteUrl !== undefined && { website_url: websiteUrl }),
+        ...(phone !== undefined && { phone }),
+        ...(contactEmail !== undefined && { contact_email: contactEmail }),
+        ...(businessHours !== undefined && { business_hours: businessHours }),
+        ...(brandColors !== undefined && { brand_colors: brandColors }),
+        ...(brandVoice !== undefined && { brand_voice: brandVoice }),
+        ...(logoUrl !== undefined && { logo_url: logoUrl }),
         updated_at: new Date().toISOString(),
       })
       .eq('id', user.id)

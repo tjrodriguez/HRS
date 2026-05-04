@@ -182,9 +182,15 @@ function CompactRecentActivity(): React.ReactElement {
 }
 
 export function Dashboard(): React.ReactElement {
-  const { profile, holidays, campaigns } = useBusiness();
+  const { profile, holidays, campaigns, isLoading } = useBusiness();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+
+  // Debug: Log campaigns
+  useEffect(() => {
+    console.log('Dashboard campaigns:', campaigns.length, campaigns);
+    console.log('Loading state:', isLoading);
+  }, [campaigns, isLoading]);
 
   // Get today's date
   const today = new Date();
@@ -246,11 +252,16 @@ export function Dashboard(): React.ReactElement {
     const map = new Map<string, Campaign[]>();
     campaigns.forEach((campaign) => {
       if (campaign.scheduled_date) {
-        const dateStr = format(parseISO(campaign.scheduled_date), 'yyyy-MM-dd')
+        // Parse date-only string (yyyy-MM-dd) without timezone issues
+        // by manually extracting year, month, day
+        const [year, month, day] = campaign.scheduled_date.split('-').map(Number);
+        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         if (!map.has(dateStr)) map.set(dateStr, [])
         map.get(dateStr)!.push(campaign)
       }
     })
+    // Debug: Log the campaignsByDate map
+    console.log('campaignsByDate:', Array.from(map.entries()));
     return map
   }, [campaigns]);
 
@@ -331,6 +342,9 @@ export function Dashboard(): React.ReactElement {
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-primary" />
                 <h2 className="text-sm font-semibold text-foreground">{monthLabel}</h2>
+                {isLoading && (
+                  <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>
+                )}
               </div>
               <div className="flex items-center gap-1">
                 <button
@@ -425,10 +439,10 @@ export function Dashboard(): React.ReactElement {
                       {/* Indicators - larger and more visible */}
                       <div className="flex items-center gap-1 mt-0.5">
                         {hasScheduled && (
-                          <div className="w-1.5 h-1.5 rounded-full bg-accent" title="Scheduled post" />
+                          <div className="w-2.5 h-2.5 rounded-full bg-accent border border-white/20" title={`${dayCampaigns.length} scheduled post(s)`} />
                         )}
                         {hasHoliday && (
-                          <div className={`w-1.5 h-1.5 rounded-full ${holidayNeedsReminder ? 'bg-destructive' : 'bg-primary'}`} title={holidayNeedsReminder ? 'Holiday with reminder' : 'Holiday'} />
+                          <div className={`w-2.5 h-2.5 rounded-full ${holidayNeedsReminder ? 'bg-destructive' : 'bg-primary'}`} title={holidayNeedsReminder ? 'Holiday with reminder' : 'Holiday'} />
                         )}
                       </div>
                     </button>

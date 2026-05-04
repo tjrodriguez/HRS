@@ -9,13 +9,23 @@ import { fetchHolidays, fetchProfile, fetchEngagementData, fetchCampaigns, fetch
 export interface Profile {
   id?: string;
   name: string;
-  niche: string;
-  tone: string;
   type?: string;
   description?: string;
   location?: string;
   targetAudience?: string;
+  // AI-relevant fields
+  niche: string;
+  tone: string;
   socialPlatforms: string[];
+  // Contact info fields
+  websiteUrl?: string;
+  phone?: string;
+  contactEmail?: string;
+  businessHours?: Record<string, string>;
+  // Brand customization fields
+  brandColors?: string[];
+  brandVoice?: string;
+  logoUrl?: string;
 }
 
 export interface Holiday {
@@ -135,7 +145,7 @@ const fallbackHolidays: Holiday[] = [
 const fallbackEngagementData: EngagementMetrics[] = [
   { date: "2026-01", views: 4000, interactions: 2400, likes: 1000, comments: 200, shares: 100, reach: 5000, holidayName: "New Year", platform: "Instagram" },
   { date: "2026-02", views: 3000, interactions: 1398, likes: 800, comments: 150, shares: 50, reach: 4000, holidayName: "Valentine's Day", platform: "Facebook" },
-  { date: "2026-03", views: 2000, interactions: 9800, likes: 5000, comments: 800, shares: 4000, reach: 15000, holidayName: "St. Patrick's Day", platform: "Twitter" },
+  { date: "2026-03", views: 2000, interactions: 9800, likes: 5000, comments: 800, shares: 4000, reach: 15000, holidayName: "St. Patrick's Day", platform: "Instagram" },
 ];
 
 const BusinessContext = createContext<BusinessContextType | undefined>(undefined);
@@ -170,13 +180,22 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
         setProfile({
           id: profileData.id,
           name: profileData.name,
-          niche: profileData.niche,
-          tone: profileData.tone,
-          type: profileData.type,
-          description: profileData.description,
-          location: profileData.location,
-          targetAudience: profileData.target_audience,
-          socialPlatforms: profileData.social_platforms,
+          type: profileData.type || undefined,
+          description: profileData.description || undefined,
+          location: profileData.location || undefined,
+          targetAudience: profileData.target_audience || undefined,
+          niche: profileData.niche || 'Retail',
+          tone: profileData.tone || 'Friendly',
+          socialPlatforms: profileData.social_platforms || ['Instagram', 'Facebook'],
+          // Contact info fields
+          websiteUrl: profileData.website_url || undefined,
+          phone: profileData.phone || undefined,
+          contactEmail: profileData.contact_email || undefined,
+          businessHours: profileData.business_hours || undefined,
+          // Brand customization fields
+          brandColors: profileData.brand_colors || undefined,
+          brandVoice: profileData.brand_voice || undefined,
+          logoUrl: profileData.logo_url || undefined,
         });
       }
 

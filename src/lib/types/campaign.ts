@@ -14,10 +14,7 @@ export interface Campaign {
     hashtags: string[];
     imageUrl?: string | null;
   };
-  platforms: {
-    instagram: boolean;
-    facebook: boolean;
-  };
+  platforms: string[];
   status: CampaignStatus;
   scheduled_date: string | null;
   created_at: string;

@@ -9,6 +9,19 @@ export interface Profile {
   location: string;
   description: string;
   target_audience: string;
+  // AI-relevant fields (from migration 002)
+  niche: string | null;
+  tone: string | null;
+  social_platforms: string[] | null;
+  // Contact info fields (from migration 004)
+  website_url: string | null;
+  phone: string | null;
+  contact_email: string | null;
+  business_hours: Record<string, string> | null;
+  // Brand customization fields (from migration 004)
+  brand_colors: string[] | null;
+  brand_voice: string | null;
+  logo_url: string | null;
   created_at: string;
   updated_at: string;
 }

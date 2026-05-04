@@ -186,6 +186,7 @@ export async function POST(request: NextRequest) {
 					businessName,
 					businessType,
 					businessNiche,
+					businessDescription,
 					tone,
 					targetAudience,
 					platform,
@@ -254,6 +255,7 @@ export async function POST(request: NextRequest) {
 					businessName,
 					businessType,
 					businessNiche,
+					businessDescription,
 					tone,
 					targetAudience,
 					platform,
@@ -410,6 +412,7 @@ function buildCaptionUserPrompt({
 	businessName,
 	businessType,
 	businessNiche,
+	businessDescription,
 	tone,
 	targetAudience,
 	platform,
@@ -421,6 +424,7 @@ function buildCaptionUserPrompt({
 	businessName?: string;
 	businessType?: string;
 	businessNiche?: string;
+	businessDescription?: string;
 	tone?: string;
 	targetAudience?: string;
 	platform?: string;
@@ -433,8 +437,11 @@ function buildCaptionUserPrompt({
 	const retryBlock = retryAttempt > 0
 		? '\nRetry guidance: use a different emotional angle and different emoji set than prior attempts.'
 		: '';
+	const descriptionBlock = businessDescription?.trim()
+		? `\nBusiness Details: ${businessDescription.trim()}`
+		: '';
 
-	return `Event: ${holidayName}\nDate: ${eventDate || 'upcoming date'}\nBusiness: ${businessName}\nType: ${businessType}\nNiche: ${businessNiche || 'general'}\nTone: ${tone}\nAudience: ${targetAudience || 'general customers'}\nPlatform: ${platform || 'Instagram'}${previousCaptionBlock}${retryBlock}`;
+	return `Event: ${holidayName}\nDate: ${eventDate || 'upcoming date'}\nBusiness: ${businessName}\nType: ${businessType}\nNiche: ${businessNiche || 'general'}${descriptionBlock}\nTone: ${tone}\nAudience: ${targetAudience || 'general customers'}\nPlatform: ${platform || 'Instagram'}${previousCaptionBlock}${retryBlock}`;
 }
 
 function normalizeCaptionForCompare(caption: string) {
